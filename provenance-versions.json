@@ -1,0 +1,11 @@
+{
+  "version": "v2026.08.1",
+  "documents": {
+    "record": "provenance-record.md",
+    "hashes": "hash-definitions.md"
+  },
+  "recordStorageVersions": [2, 6, 7],
+  "effectiveInputHashVersions": [1, 2, 3, 4, 5],
+  "workflowOutputHashVersions": [1, 2, 3],
+  "nodeHashVersions": []
+}
