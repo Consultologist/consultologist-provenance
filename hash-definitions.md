@@ -15,7 +15,7 @@ Canonical JSON, where a definition calls for it, means: property names in the or
 | Definition | Package format | Bytes hashed |
 |---|---|---|
 | **1** | before specVersion 5 | *Historical.* The draft and the package's section list together. No engine computes it and no record referencing it is re-runnable; it is listed so the number is never reused. |
-| **2** | specVersion 5, 6 | The canonical JSON object `{"consultDraft": <draft>}` — the draft only. Sections are package data and are covered by `workflowPackage`. Strings escaped by the default .NET JSON encoder (non-ASCII and `<`, `>`, `&`, `'`, `+` as `\uXXXX`). |
+| **2** | specVersion 5, 6 | The canonical JSON object `{"consultDraft": <draft>}` — the draft only. Sections are package data and are covered by `workflowPackage`. Strings escaped by the default .NET JSON encoder (non-ASCII and `<`, `>`, `&`, `'`, `+` as `\uXXXX`, hex digits uppercase). |
 | **3** | specVersion 7 | The supplied inputs as a canonical JSON object `{id: text}`, ids ordinal-sorted, every value a string, absent optional inputs omitted (never empty-string-filled). Same encoder as 2. |
 | **4** | specVersion 8 | The supplied inputs as a canonical JSON object `{id: value}`, ids ordinal-sorted, each value **typed**: a boolean is `true`/`false`, text is a string. Same encoder as 2. Definition 4 covers text and booleans only; an engine asked to hash structure under 4 refuses rather than stamping a wrong number. |
 | **5** | specVersion 9 | The supplied inputs as a canonical JSON object of **structured values**: ids ordinal-sorted at every level (top-level slot ids and object field ids — UTF-16 code-unit order, as RFC 8785); array elements in the caller's order; a number as the digits the caller sent; a boolean as `true`/`false`; text as a string; absent optionals omitted; **UTF-8 written as-is**, with only what JSON requires escaped (`"`, `\`, control characters). |
@@ -28,7 +28,7 @@ Worked examples (the string is the exact bytes hashed):
 |---|---|---|---|
 | 2 | draft `Hello` | `{"consultDraft":"Hello"}` | `b18720c3b2a3f220df2570021d79cb18ceaa4b1531ea0d1ea1ef9f91bb4e5c79` |
 | 3 | `b` = `two`, `a` = `one` | `{"a":"one","b":"two"}` | `8f770258ab53f8b20001e6ba82ae42d66479db3053a3b74776bafa2a92674514` |
-| 3 | `accent` = `café` (definitions 2–4 escape non-ASCII) | `{"accent":"caf\u00e9"}` | `7a8a9123d6f8d59a0800fc5ee88f14034c7dcf8aa08cc9132630071fcc6f9779` |
+| 3 | `accent` = `café` (definitions 2–4 escape non-ASCII, uppercase hex) | `{"accent":"caf\u00E9"}` | `3849b4da05d4d8716eca76c57d1d952e687bd164ef2e3dd53e31b1f1666ca979` |
 | 4 | `reason` = `follow-up`, `billable` = true | `{"billable":true,"reason":"follow-up"}` | `cba13032e0d21f1098f9c60b8253ace104e399ff0a9c0ded9a26a356ce172756` |
 | 5 | `patient` = `{name: Ada, age: 36}`, `notes` = `[x, y]`, `accent` = `café` | `{"accent":"café","notes":["x","y"],"patient":{"age":36,"name":"Ada"}}` | `52593837462725201bb86daf11e60f1aee9374ec207aaf234457c4713835032b` |
 
