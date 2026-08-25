@@ -64,10 +64,9 @@ jobs:
           for n in ladder("workflowOutputHashVersions"):
               if not re.search(rf"^\| \*\*{n}\*\* \|", hashes, re.M):
                   errors.append(f"workflow-output definition {n} has no row in {documents['hashes']}")
-          if ladder("nodeHashVersions") and "nodeHashVersions" in hashes:
-              pass
-          if index.get("nodeHashVersions") == [] and "carry no definition number" not in hashes:
-              errors.append(f"nodeHashVersions is empty but {documents['hashes']} does not say the per-node hashes carry no definition number")
+          for n in ladder("nodeHashVersions"):
+              if not re.search(rf"^\| \*\*{n}\*\* \|", hashes, re.M):
+                  errors.append(f"per-node definition {n} has no row in {documents['hashes']}")
 
           for error in errors:
               print(f"::error::{error}")
