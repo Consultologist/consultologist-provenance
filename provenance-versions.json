@@ -1,11 +1,26 @@
 {
-  "version": "v2026.08.1",
+  "version": "v2026.08.2",
   "documents": {
     "record": "provenance-record.md",
-    "hashes": "hash-definitions.md"
+    "hashes": "hash-definitions.md",
+    "layout": "registry-layout.md"
   },
-  "recordStorageVersions": [2, 6, 7],
-  "effectiveInputHashVersions": [1, 2, 3, 4, 5],
-  "workflowOutputHashVersions": [1, 2, 3],
+  "recordStorageVersions": [
+    2,
+    6,
+    7
+  ],
+  "effectiveInputHashVersions": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "workflowOutputHashVersions": [
+    1,
+    2,
+    3
+  ],
   "nodeHashVersions": []
 }

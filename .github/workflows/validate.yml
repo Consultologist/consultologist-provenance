@@ -31,7 +31,7 @@ jobs:
               errors.append(f"version {version!r} is not vYYYY.MM.N")
 
           documents = index.get("documents", {})
-          for key in ("record", "hashes"):
+          for key in ("record", "hashes", "layout"):
               if key not in documents:
                   errors.append(f"documents has no {key!r} entry")
           for key, filename in sorted(documents.items()):
