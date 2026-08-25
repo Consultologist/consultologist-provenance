@@ -50,14 +50,24 @@ Worked examples:
 | 2 | document `Consultation note` followed by a newline | `Consultation note\n` | `480ef298782bf4aab9a0b181ed6e0a22e049c1f0c51d85cf9659ae6220c23149` |
 | 3 | results `note` = `Consultation note`, `letter` = `Patient letter` | `{"letter":"2000345f16eab8ff9958974250359885ad24f13d5ffe1ea64c9ff8705fa035d4","note":"ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970"}` | `c8f784623550f4da6037fa84eab103b246880be1be5ed5cb8ba061d08c45d6e5` |
 
-## 4. The per-node hashes (`nodeOutputs[].inputHash`, `nodeOutputs[].outputHash`)
+## 4. The per-node hashes (`nodeOutputs[].inputHash`, `nodeOutputs[].outputHash`, `nodeOutputs[].hashVersion`)
 
 A node instance's `inputHash` is SHA-256 of the exact rendered prompt the agent received (template, prelude and variables rendered to text); its `outputHash` is SHA-256 of the raw text the agent returned. An aggregator node's `inputHash` is instead SHA-256 of the canonical JSON array of its sources' output hashes in aggregation order, and its `outputHash` is SHA-256 of the text it rendered.
 
-**These hashes carry no definition number.** `provenance-versions.json` says so with an empty `nodeHashVersions`. The bytes of a rendered prompt have changed at least twice without a number moving (a date rendering as `2026-08-10` rather than `10 Aug 2026`; an absent optional boolean rendering as nothing rather than an empty string), so a per-node hash is comparable only between runs of the same engine build — which the engine attests at `GET /api/Public/Engine`. Giving them a ladder is tracked in the engine repo.
+**One number defines the pair.** `hashVersion` on a node instance names the definition both of its hashes were computed under. Across the ladder the output hash and the aggregator's input hash have never changed; every definition differs only in how the prompt renders — which is what `inputHash` is over, and why the number moves.
 
-Worked examples: text `Hello` → `185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969`; an aggregator over sources whose output hashes are `ce812380…c970` (`Consultation note`) then `2000345f…35d4` (`Patient letter`) hashes the bytes `["ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970","2000345f16eab8ff9958974250359885ad24f13d5ffe1ea64c9ff8705fa035d4"]` → `d8429debeb9facdd005d84147a126b01bbb0b5ea60944dad1b96ee1bd2d73c8d`.
+| Definition | From | What the rendered prompt is |
+|---|---|---|
+| **1** | 2026-07-14 (engine `260db91`) | The prelude with trailing whitespace removed, two newlines, then the template rendered with every variable as the string the caller supplied. |
+| **2** | 2026-08-10 (engine `c4ad2a7`) | As 1, but a typed input renders from its typed value — a date in the renderer's default form (`10 Aug 2026`), a boolean as `true`/`false`. |
+| **3** | 2026-08-13 (engine `964af19`) | As 2, but a date renders as the ISO date it was supplied as (`2026-08-10`). |
+| **4** | 2026-08-13 (engine `5b12999`) | As 3, but an absent optional typed input renders nothing and is falsy in conditions (it was the empty string, and truthy). |
+| **5** | 2026-08-22 (engine `a661a20`, `34224fa`) | As 4, but structured values (objects, arrays, numbers) materialise as structure, a fan item carries its typed value, and an empty array is falsy. **Current.** |
+
+Records stamp `hashVersion` from 2026-08-25; the first stamped definition is 5. A record from before carries no `hashVersion`: by its `createdAtUtc` and the dates above it ran under one of 1–5, and its per-node hashes may not be compared with a record from the other side of any of those dates. Two records with the same `hashVersion`, package version and inputs whose first node's `inputHash` differs ran different prompt bytes — and that is the only conclusion a per-node hash supports across records.
+
+Worked examples, valid under every definition (the output side never moved): text `Hello` → `185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969`; an aggregator over sources whose output hashes are `ce812380…c970` (`Consultation note`) then `2000345f…35d4` (`Patient letter`) hashes the bytes `["ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970","2000345f16eab8ff9958974250359885ad24f13d5ffe1ea64c9ff8705fa035d4"]` → `d8429debeb9facdd005d84147a126b01bbb0b5ea60944dad1b96ee1bd2d73c8d`.
 
 ## 5. The per-document hash (`assembledDocuments[].documentHash`)
 
-SHA-256 of the document's `text`, unversioned by the same token as § 4 — it is the primitive definition 3 composes. `Consultation note` → `ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970`.
+SHA-256 of the document's `text`. Unversioned by design: it is the primitive definition 3 composes, and a primitive's definition cannot change without being a different function. `Consultation note` → `ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970`.

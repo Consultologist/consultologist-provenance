@@ -1,5 +1,5 @@
 {
-  "version": "v2026.08.2",
+  "version": "v2026.08.3",
   "documents": {
     "record": "provenance-record.md",
     "hashes": "hash-definitions.md",
@@ -22,5 +22,11 @@
     2,
     3
   ],
-  "nodeHashVersions": []
+  "nodeHashVersions": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ]
 }
