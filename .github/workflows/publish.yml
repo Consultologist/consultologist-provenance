@@ -1,0 +1,69 @@
+name: Publish provenance
+
+on:
+  push:
+    branches: [main]
+  # The 2026-08-06 Actions incident dropped push events for a day; the sibling
+  # registries kept a manual door for the same reason.
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY_ACCOUNT: consultologistpublic
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: registry
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed content
+        id: diff
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git show --name-only --format= HEAD)
+          # Only the artifact matters: a README or workflow edit is not a new
+          # version of the contract, and must not consume a version number.
+          if echo "$CHANGED" | grep -qE '^(provenance-versions\.json|provenance-record\.md|hash-definitions\.md)$'; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "$CHANGED"
+
+      - name: Azure login (OIDC)
+        if: steps.diff.outputs.publish == 'true' || github.event_name == 'workflow_dispatch'
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Refuses rather than overwrites when the version was not bumped, so a
+      # documentation change that forgot its bump fails loudly instead of
+      # rewriting a specification somebody has already published against.
+      - name: Publish
+        if: steps.diff.outputs.publish == 'true' || github.event_name == 'workflow_dispatch'
+        run: ./scripts/publish-provenance.sh "$REGISTRY_ACCOUNT"
+
+      - name: Smoke-check anonymously
+        if: steps.diff.outputs.publish == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import json;print(json.load(open('provenance-versions.json'))['version'])")
+          BASE="https://consultologistpublic.blob.core.windows.net/provenance"
+          POINTED=$(curl -sf "$BASE/latest.json" | python3 -c "import json,sys;print(json.load(sys.stdin)['version'])")
+          if [ "$POINTED" != "$VERSION" ]; then
+            echo "::error::latest.json points at $POINTED but this run published $VERSION"
+            exit 1
+          fi
+          curl -sf "$BASE/$VERSION/provenance-versions.json" | python3 -c "
+          import json,sys
+          index = json.load(sys.stdin)
+          print('published', index['version'], 'record storage versions', index['recordStorageVersions'])"

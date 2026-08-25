@@ -1,0 +1,76 @@
+# consultologist-provenance
+
+The contract for the **provenance record** the Consultologist engine writes for
+every consult, and the **hash definitions** a holder of a record recomputes
+with — published as a versioned registry.
+
+An outside verifier reads two things before checking anything: what a record
+carries, and how its hashes were computed. This repo is where both live.
+
+| File | Defines |
+| --- | --- |
+| `provenance-versions.json` | which record storage versions and hash-definition numbers exist, and the document defining each |
+| `provenance-record.md` | the record: its fields, the three kinds they come in (refs, snapshots, derived projections), the two version ladders that are not one, and how to read a record |
+| `hash-definitions.md` | every hash on a record, byte for byte, with worked examples — effective-input definitions 1–5, workflow-output definitions 1–3, the per-node and per-document hashes |
+
+## Reading it from the registry
+
+Every version is published to the public registry and is fetchable with no
+credential:
+
+```
+https://consultologistpublic.blob.core.windows.net/provenance/latest.json
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.1/provenance-versions.json
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.1/provenance-record.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.1/hash-definitions.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.1/LICENSE
+```
+
+`latest.json` is the only mutable blob — `{"version": "vYYYY.MM.N"}`. Published
+versions are **immutable**: the publish script refuses to overwrite one.
+
+## Publishing a change
+
+`provenance-versions.json` carries its own CalVer version (`vYYYY.MM.N`,
+zero-padded month, counter ≥ 1). Bump it in the same commit as whatever you
+changed, and merging to `main` publishes — there is no tag. Forgetting the
+bump fails the publish rather than overwriting a published version.
+
+Documents upload before `provenance-versions.json`, so a partial upload is
+never visible as a complete version.
+
+## Two conventions worth knowing
+
+**Outbound links are commit-pinned.** These documents cite design records that
+live in the engine repo. Those links point at a specific commit rather than at
+`main`, so a published version resolves to the same words forever.
+
+**The ladders are published facts, not code constants.** The engine vendors
+this repo as a submodule, and a test there asserts that its own hash-definition
+constants and record storage versions equal `provenance-versions.json`, and
+that the worked examples in `hash-definitions.md` recompute byte for byte
+through the engine's own code. The documents and the engine cannot silently
+disagree.
+
+## Licence
+
+These documents are licensed **[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)**
+— © 2026 Tauheed Elahee. Read them, cite them, and share them unchanged with
+attribution.
+
+- **Recomputing a hash or reading a record is unaffected.** A verifier's code
+  is not a derivative work of this prose.
+- **NoDerivatives** covers this text: no translations, no modified or excerpted
+  redistributions of the documents themselves.
+- **NonCommercial** covers redistribution of the documents, not use of the
+  definitions.
+
+The licence covers the documents and `provenance-versions.json` only. It grants
+no rights to the Consultologist engine, which is separately licensed.
+
+## Related registries
+
+- [consultologist-package-format](https://github.com/Consultologist/consultologist-package-format) — the package format a record's `packageSpecVersion` names
+- [consultologist-workflows](https://github.com/Consultologist/consultologist-workflows) — the packages a record's `workflowPackage` names
+- [consultologist-agents](https://github.com/Consultologist/consultologist-agents) — the output-contract catalog a record's `catalogRef` names
+- [Consultologist-Blazor](https://github.com/Consultologist/Consultologist-Blazor) — the engine, and the design record these documents came from

@@ -1,0 +1,144 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Structural only, and deliberately so: what each definition MEANS is
+      # prose, and the engine repo's test is what proves the numbers here are
+      # the ones it computes with and the worked examples recompute. This
+      # checks the artifact is well-formed and complete enough to publish.
+      - name: The index is well formed and complete
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re, sys
+
+          index = json.load(open("provenance-versions.json"))
+          errors = []
+
+          version = index.get("version", "")
+          if not re.fullmatch(r"v\d{4}\.\d{2}\.[1-9]\d*", version):
+              errors.append(f"version {version!r} is not vYYYY.MM.N")
+
+          documents = index.get("documents", {})
+          for key in ("record", "hashes"):
+              if key not in documents:
+                  errors.append(f"documents has no {key!r} entry")
+          for key, filename in sorted(documents.items()):
+              if not pathlib.Path(filename).is_file():
+                  errors.append(f"document {filename} for {key} does not exist")
+
+          def ladder(name):
+              values = index.get(name)
+              if not isinstance(values, list) or not all(isinstance(n, int) for n in values):
+                  errors.append(f"{name} must be a list of integers, got {values!r}")
+                  return []
+              if values != sorted(values) or len(set(values)) != len(values):
+                  errors.append(f"{name} must be ascending and distinct, got {values!r}")
+              return values
+
+          record = pathlib.Path(documents.get("record", "")).read_text() if documents.get("record") and pathlib.Path(documents["record"]).is_file() else ""
+          hashes = pathlib.Path(documents.get("hashes", "")).read_text() if documents.get("hashes") and pathlib.Path(documents["hashes"]).is_file() else ""
+
+          # Every number the index publishes must be defined by its document:
+          # a storage version the record document never mentions, or a
+          # definition number with no row, is a number a reader cannot resolve.
+          storage = ladder("recordStorageVersions")
+          if storage:
+              stated = f"storage versions {', '.join(str(v) for v in storage[:-1])} and {storage[-1]}"
+              if stated not in record:
+                  errors.append(f"{documents['record']} never states '{stated}'")
+          for n in ladder("effectiveInputHashVersions"):
+              if not re.search(rf"^\| \*\*{n}\*\* \|", hashes, re.M):
+                  errors.append(f"effective-input definition {n} has no row in {documents['hashes']}")
+          for n in ladder("workflowOutputHashVersions"):
+              if not re.search(rf"^\| \*\*{n}\*\* \|", hashes, re.M):
+                  errors.append(f"workflow-output definition {n} has no row in {documents['hashes']}")
+          if ladder("nodeHashVersions") and "nodeHashVersions" in hashes:
+              pass
+          if index.get("nodeHashVersions") == [] and "carry no definition number" not in hashes:
+              errors.append(f"nodeHashVersions is empty but {documents['hashes']} does not say the per-node hashes carry no definition number")
+
+          for error in errors:
+              print(f"::error::{error}")
+          sys.exit(1 if errors else 0)
+          PY
+
+      # A normative document whose links rot is a document nobody can follow.
+      # Relative links must resolve in this repo; absolute ones must be
+      # commit-pinned, never tracking a branch that can move under a published
+      # version.
+      - name: Links resolve, and outbound links are pinned
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, sys
+
+          errors = []
+          for doc in sorted(pathlib.Path(".").glob("*.md")):
+              for number, line in enumerate(doc.read_text().splitlines(), 1):
+                  for target in re.findall(r"\]\(([^)]+)\)", line):
+                      if target.startswith("http"):
+                          if "/blob/main/" in target or "/tree/main/" in target:
+                              errors.append(f"{doc}:{number} links to main, which moves: {target}")
+                      elif target.startswith("#"):
+                          continue
+                      elif not pathlib.Path(target.split("#")[0]).is_file():
+                          errors.append(f"{doc}:{number} dangling relative link: {target}")
+
+          for error in errors:
+              print(f"::error::{error}")
+          sys.exit(1 if errors else 0)
+          PY
+
+      # The worked examples are the part of this contract a reader can check
+      # without the engine: every table row that states bytes and a digest
+      # must agree with itself.
+      - name: The worked examples hash to what they say
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib, re, sys
+
+          text = pathlib.Path("hash-definitions.md").read_text()
+          checked = 0
+          errors = []
+          for line in text.splitlines():
+              cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
+              if len(cells) == 4 and cells[2].startswith("`") and re.fullmatch(r"`[0-9a-f]{64}`", cells[3]):
+                  raw = cells[2][1:-1].replace("\\n", "\n")
+                  digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+                  if digest != cells[3][1:-1]:
+                      errors.append(f"row '{cells[0]}' / {cells[1]}: bytes hash to {digest}, not {cells[3]}")
+                  checked += 1
+          for error in errors:
+              print(f"::error::{error}")
+          print(f"{checked} worked examples checked")
+          sys.exit(1 if errors or checked == 0 else 0)
+          PY
+
+      - name: The publish script is syntactically sound
+        run: bash -n scripts/publish-provenance.sh
+
+      # A warning, not an error: the bump belongs in the same commit as the
+      # change, but a pull request that has not bumped yet is a normal state.
+      # publish.yml refuses for real, after merge, before anything is written.
+      - name: This version is not already published
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import json;print(json.load(open('provenance-versions.json'))['version'])")
+          URL="https://consultologistpublic.blob.core.windows.net/provenance/$VERSION/provenance-versions.json"
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          if [ "$CODE" = "200" ]; then
+            echo "::warning::provenance@$VERSION is already published — bump the version before merging"
+          else
+            echo "$VERSION is unpublished (HTTP $CODE)"
+          fi
