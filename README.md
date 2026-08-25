@@ -63,13 +63,25 @@ attribution.
 
 - **Recomputing a hash or reading a record is unaffected.** A verifier's code
   is not a derivative work of this prose.
-- **NoDerivatives** covers this text: no translations, no modified or excerpted
-  redistributions of the documents themselves.
+- **NoDerivatives** covers this text: no translations, and no redistribution of
+  the documents in modified form. Quoting them — a definition, a worked example
+  and its digest as a test vector — within fair dealing is fine and is what
+  "cite them" means.
 - **NonCommercial** covers redistribution of the documents, not use of the
   definitions.
 
 The licence covers the documents and `provenance-versions.json` only. It grants
-no rights to the Consultologist engine, which is separately licensed.
+no rights to the Consultologist engine, which is separately licensed, and no
+patent or trademark rights.
+
+**Consultologist clients hold a licence that goes beyond this one.** Every
+client may use these documents commercially — inside the app, and in their own
+environment outside it — and holds the copyright in what they author. That
+permission is part of the client agreement, not this file; this licence is
+the public default for everyone else. Anyone who needs more than it grants
+can ask.
+Recomputing a record's hashes, and running a consult from the artifacts a
+record names in your own harness, needs no permission from this licence.
 
 ## Related registries
 
