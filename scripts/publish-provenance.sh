@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Publish the provenance record contract and hash definitions to the PUBLIC registry and update
-# their latest-pointer. The document set is a versioned artifact (spec-versions.json
-# declares its own CalVer version); published versions are immutable — this script
-# refuses to overwrite an existing version. The engine does not fetch this at
-# runtime: it vendors this repo as a submodule and a test asserts its hash constants and record storage versions match the index and the worked examples recompute, so the two cannot silently disagree; the accepted
+# Publish the provenance registry — the record contract, the hash definitions
+# and the registry layout — to the PUBLIC registry and update its
+# latest-pointer. The document set is a versioned artifact
+# (provenance-versions.json declares its own CalVer version); published
+# versions are immutable — this script refuses to overwrite an existing
+# version. The engine does not fetch this at runtime: it vendors this repo as
+# a submodule, and a test there asserts its hash constants and record storage
+# versions match the index and that the worked examples recompute, so the
+# two cannot silently disagree.
 #
 # Usage:
 #   ./scripts/publish-provenance.sh <storage-account>
@@ -16,7 +20,7 @@ INDEX="provenance-versions.json"
 
 if [[ $# -ne 1 ]]; then
 	# 1d drops the shebang, which grep '^#' would otherwise print as usage.
-	grep '^#' "$0" | sed -e '1d' -e 's/^# \{0,1\}//' | head -11
+	grep '^#' "$0" | sed -e '1d' -e 's/^# \{0,1\}//' | head -13
 	exit 1
 fi
 

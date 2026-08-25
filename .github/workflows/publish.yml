@@ -30,7 +30,7 @@ jobs:
           CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git show --name-only --format= HEAD)
           # Only the artifact matters: a README or workflow edit is not a new
           # version of the contract, and must not consume a version number.
-          if echo "$CHANGED" | grep -qE '^(provenance-versions\.json|provenance-record\.md|hash-definitions\.md)$'; then
+          if echo "$CHANGED" | grep -qE '^(provenance-versions\.json|provenance-record\.md|hash-definitions\.md|registry-layout\.md)$'; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
