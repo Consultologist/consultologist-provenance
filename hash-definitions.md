@@ -19,8 +19,9 @@ Canonical JSON, where a definition calls for it, means: property names in the or
 | **3** | specVersion 7 | The supplied inputs as a canonical JSON object `{id: text}`, ids ordinal-sorted, every value a string, absent optional inputs omitted (never empty-string-filled). Same encoder as 2. |
 | **4** | specVersion 8 | The supplied inputs as a canonical JSON object `{id: value}`, ids ordinal-sorted, each value **typed**: a boolean is `true`/`false`, text is a string. Same encoder as 2. Definition 4 covers text and booleans only; an engine asked to hash structure under 4 refuses rather than stamping a wrong number. |
 | **5** | specVersion 9 | The supplied inputs as a canonical JSON object of **structured values**: ids ordinal-sorted at every level (top-level slot ids and object field ids — UTF-16 code-unit order, as RFC 8785); array elements in the caller's order; a number as the digits the caller sent; a boolean as `true`/`false`; text as a string; absent optionals omitted; **UTF-8 written as-is**, with only what JSON requires escaped (`"`, `\`, control characters). |
+| **6** | specVersion 10 | Definition 5 **recursed**. A field may itself be an object or an array, and an array's element an object or an array, to any depth the package declares; every rule of definition 5 applies at every level — field ids ordinal-sorted inside every object, elements in the caller's order inside every array, numbers as sent, UTF-8 as-is, absent optionals omitted. A v10 map with no nested structure hashes byte-identically under 5 and 6: the recursion never enters, and that is the control. |
 
-Definitions 4 and 5 agree byte for byte on an ASCII map of scalars and on nothing wider, which is fine: they are never compared.
+Definitions 4 and 5 agree byte for byte on an ASCII map of scalars and on nothing wider, which is fine: they are never compared. Definitions 5 and 6 agree byte for byte on any map one level deep — by construction, since 6 is 5 applied again beneath — and are still never compared: the record says which number it stamped.
 
 Worked examples (the string is the exact bytes hashed):
 
@@ -31,10 +32,12 @@ Worked examples (the string is the exact bytes hashed):
 | 3 | `accent` = `café` (definitions 2–4 escape non-ASCII, uppercase hex) | `{"accent":"caf\u00E9"}` | `3849b4da05d4d8716eca76c57d1d952e687bd164ef2e3dd53e31b1f1666ca979` |
 | 4 | `reason` = `follow-up`, `billable` = true | `{"billable":true,"reason":"follow-up"}` | `cba13032e0d21f1098f9c60b8253ace104e399ff0a9c0ded9a26a356ce172756` |
 | 5 | `patient` = `{name: Ada, age: 36}`, `notes` = `[x, y]`, `accent` = `café` | `{"accent":"café","notes":["x","y"],"patient":{"age":36,"name":"Ada"}}` | `52593837462725201bb86daf11e60f1aee9374ec207aaf234457c4713835032b` |
+| 6 | `family_history` = `[{relative: mother, contact: {preferred: email, phone: 555}, conditions: [b, a]}]` — a nested object and a nested array inside an array element | `{"family_history":[{"conditions":["b","a"],"contact":{"phone":"555","preferred":"email"},"relative":"mother"}]}` | `b6a313365b611c7ec0be83d67237876ae56d4fe5fac3b77e758985551f59037d` |
+| 6 | definition 5's own example, hashed under 6 — the control: no nesting, the same bytes | `{"accent":"café","notes":["x","y"],"patient":{"age":36,"name":"Ada"}}` | `52593837462725201bb86daf11e60f1aee9374ec207aaf234457c4713835032b` |
 
 ## 3. The workflow-output hash (`workflowOutputHash`, `workflowOutputHashVersion`)
 
-Defined only for a `Completed` job; derived from the record, never stored.
+Defined only for a `Completed` job. Computed from the produced text once, when the job completes, and stored on the record (records from before 2026-08-25 derived it on every read; the served value is the same) — so it survives the text's deletion under the retention policy (`textDroppedAtUtc`, provenance-record.md § 4).
 
 | Definition | Storage version | Bytes hashed |
 |---|---|---|
@@ -65,6 +68,12 @@ A node instance's `inputHash` is SHA-256 of the exact rendered prompt the agent 
 | **5** | 2026-08-22 (engine `a661a20`, `34224fa`) | As 4, but structured values (objects, arrays, numbers) materialise as structure, a fan item carries its typed value, and an empty array is falsy. **Current.** |
 
 Records stamp `hashVersion` from 2026-08-25; the first stamped definition is 5. A record from before carries no `hashVersion`: by its `createdAtUtc` and the dates above it ran under one of 1–5, and its per-node hashes may not be compared with a record from the other side of any of those dates. Two records with the same `hashVersion`, package version and inputs whose first node's `inputHash` differs ran different prompt bytes — and that is the only conclusion a per-node hash supports across records.
+
+**A classifier's pair** (specVersion 10, a node of kind `classifier`). `inputHash` is over what the agent received: the rendered prompt **plus** the classification trailer the engine appends — a blank line and *Answer with exactly one of: <the declared values, in declared order>.* — because that sentence is part of the prompt bytes. `outputHash` is the SHA-256 of the **normalised** answer — the declared value the agent's reply resolved to (lower-cased, trimmed, one of the values) — not of the raw text returned; two runs that answer the same value hash the same however the model spelled its reply. The value itself is on the record as `nodeOutputs[].classification` and `classifications`. `hashVersion` does not move for a classifier: 5 names the rendering, and the trailer is part of the prompt under 5.
+
+| Definition | Input | Bytes | SHA-256 |
+|---|---|---|---|
+| 5 (classifier output) | the normalised answer `in_scope` | `in_scope` | `9464a24113872b892e176555598c34aa1a900ae21b2a7dadc4916b40a423d0cf` |
 
 Worked examples, valid under every definition (the output side never moved): text `Hello` → `185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969`; an aggregator over sources whose output hashes are `ce812380…c970` (`Consultation note`) then `2000345f…35d4` (`Patient letter`) hashes the bytes `["ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970","2000345f16eab8ff9958974250359885ad24f13d5ffe1ea64c9ff8705fa035d4"]` → `d8429debeb9facdd005d84147a126b01bbb0b5ea60944dad1b96ee1bd2d73c8d`.
 
