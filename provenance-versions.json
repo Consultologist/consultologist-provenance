@@ -1,5 +1,5 @@
 {
-  "version": "v2026.08.6",
+  "version": "v2026.08.7",
   "documents": {
     "record": "provenance-record.md",
     "hashes": "hash-definitions.md",
@@ -15,7 +15,8 @@
     2,
     3,
     4,
-    5
+    5,
+    6
   ],
   "workflowOutputHashVersions": [
     1,
