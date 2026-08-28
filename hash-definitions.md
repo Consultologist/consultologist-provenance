@@ -2,7 +2,7 @@
 
 *Published as part of `provenance@vYYYY.MM.N`; `provenance-versions.json` lists which definition numbers exist.*
 
-Every hash on a provenance record is lowercase hexadecimal SHA-256 over UTF-8 bytes, and every hash that has a definition number is computed by exactly the definition that number names.
+Every hash on a provenance record is lowercase hexadecimal SHA-256 over UTF-8 bytes — except `inputOrigins[].fileSha256` (§ 6), which is over a file's bytes exactly as received, whatever they encode — and every hash that has a definition number is computed by exactly the definition that number names.
 
 ## 1. The rule
 
@@ -80,3 +80,21 @@ Worked examples, valid under every definition (the output side never moved): tex
 ## 5. The per-document hash (`assembledDocuments[].documentHash`)
 
 SHA-256 of the document's `text`. Unversioned by design: it is the primitive definition 3 composes, and a primitive's definition cannot change without being a different function. `Consultation note` → `ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970`.
+
+## 6. The per-input-document pair (`inputOrigins[].fileSha256`, `inputOrigins[].textSha256`)
+
+When a document filled an input, its origin carries two digests, unversioned as § 5 is:
+
+- **`fileSha256`** — SHA-256 of the file's bytes **as received**, before the parser touches them. The bytes are never kept (the engine clears them at start), so this is the one thing they leave behind: a holder of the original file recomputes it and knows whether the record is of that file.
+- **`textSha256`** — SHA-256 of the UTF-8 text the parser read from the file, **as it entered the effective-input map**: line endings to LF, a lone CR to LF, trailing whitespace off the end — the same canonical form every input takes before the effective-input hash (§ 2) sees it, so this digest is of exactly the bytes that hash saw for the slot.
+
+The two are read together. Equal `fileSha256` with unequal `textSha256` across two records means the **extraction** changed, not the document — the origins' `extractor` (`name/version+commit`) names the two builds. Unequal `fileSha256` means a different file, whatever the readings. Neither digest is a name: a filename can be patient data and is never on the record; a digest cannot be read back.
+
+Worked example, a text file whose bytes carry two trailing newlines — the reading is the file with them trimmed, so the two digests differ although nothing but whitespace did:
+
+| Digest | Input | Bytes | SHA-256 |
+|---|---|---|---|
+| `fileSha256` | the file as received | `Hello\n\n` | `d9cd8d02c17c5dfa76991d216db8511c5b57f5c01cffa2e3378e183f4855259b` |
+| `textSha256` | the text read from it, canonical | `Hello` | `185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969` |
+
+A file whose bytes are already canonical text has equal digests — the statement that nothing changed between the file and its reading.
