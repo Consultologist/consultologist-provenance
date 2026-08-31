@@ -12,7 +12,7 @@ carries, and how its hashes were computed. This repo is where both live.
 | --- | --- |
 | `provenance-versions.json` | which record storage versions and hash-definition numbers exist, and the document defining each |
 | `provenance-record.md` | the record: its fields, the three kinds they come in (refs, snapshots, derived projections), the two version ladders that are not one, and how to read a record |
-| `hash-definitions.md` | every hash on a record, byte for byte, with worked examples — effective-input definitions 1–5, workflow-output definitions 1–3, the per-node and per-document hashes |
+| `hash-definitions.md` | every hash on a record, byte for byte, with worked examples — effective-input definitions 1–6, workflow-output definitions 1–3, the per-node and per-document hashes |
 | `registry-layout.md` | how a ref resolves to bytes: where every registry lives, the two layout families, CalVer, immutability by refusal, dependencies before the index, `latest.json` as a pointer, concrete refs in records — and the departures the current registries still have |
 
 ## Reading it from the registry
@@ -22,11 +22,11 @@ credential:
 
 ```
 https://consultologistpublic.blob.core.windows.net/provenance/latest.json
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.9/provenance-versions.json
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.9/provenance-record.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.9/hash-definitions.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.9/registry-layout.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.9/LICENSE
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.11/provenance-versions.json
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.11/provenance-record.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.11/hash-definitions.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.11/registry-layout.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.11/LICENSE
 ```
 
 `latest.json` is the only mutable blob — `{"version": "vYYYY.MM.N"}`. Published

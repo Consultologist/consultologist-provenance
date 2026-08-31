@@ -81,6 +81,12 @@ Worked examples, valid under every definition (the output side never moved): tex
 
 SHA-256 of the document's `text`. Unversioned by design: it is the primitive definition 3 composes, and a primitive's definition cannot change without being a different function. `Consultation note` → `ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970`.
 
+Unchanged by specVersion 11: what a package appends after the aggregated sections (a macro's expansion, a signature block) is inside `text` before the digest is taken — the definition sees one document, never a document plus attachments.
+
+| Digest | Input | Bytes | SHA-256 |
+|---|---|---|---|
+| `documentHash` | a document with an appended block | `Note.\n\nAppended disclaimer.` | `4c4be8b3d6ef10d96f96d95f0cefbf81dfcf268030bf44679227b80f9c74aac3` |
+
 ## 6. The per-input-document pair (`inputOrigins[].fileSha256`, `inputOrigins[].textSha256`)
 
 When a document filled an input, its origin carries two digests, unversioned as § 5 is:
