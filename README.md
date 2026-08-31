@@ -22,11 +22,11 @@ credential:
 
 ```
 https://consultologistpublic.blob.core.windows.net/provenance/latest.json
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.12/provenance-versions.json
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.12/provenance-record.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.12/hash-definitions.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.12/registry-layout.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.12/LICENSE
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.13/provenance-versions.json
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.13/provenance-record.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.13/hash-definitions.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.13/registry-layout.md
+https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.13/LICENSE
 ```
 
 `latest.json` is the only mutable blob — `{"version": "vYYYY.MM.N"}`. Published
