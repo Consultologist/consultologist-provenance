@@ -21,12 +21,12 @@ Every version is published to the public registry and is fetchable with no
 credential:
 
 ```
-https://consultologistpublic.blob.core.windows.net/provenance/latest.json
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.14/provenance-versions.json
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.14/provenance-record.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.14/hash-definitions.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.14/registry-layout.md
-https://consultologistpublic.blob.core.windows.net/provenance/v2026.08.14/LICENSE
+https://consultologistpubcaeast.blob.core.windows.net/provenance/latest.json
+https://consultologistpubcaeast.blob.core.windows.net/provenance/v2026.08.14/provenance-versions.json
+https://consultologistpubcaeast.blob.core.windows.net/provenance/v2026.08.14/provenance-record.md
+https://consultologistpubcaeast.blob.core.windows.net/provenance/v2026.08.14/hash-definitions.md
+https://consultologistpubcaeast.blob.core.windows.net/provenance/v2026.08.14/registry-layout.md
+https://consultologistpubcaeast.blob.core.windows.net/provenance/v2026.08.14/LICENSE
 ```
 
 `latest.json` is the only mutable blob — `{"version": "vYYYY.MM.N"}`. Published
