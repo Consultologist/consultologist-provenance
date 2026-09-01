@@ -12,7 +12,7 @@
 # Usage:
 #   ./scripts/publish-provenance.sh <storage-account>
 # Example:
-#   ./scripts/publish-provenance.sh consultologistpublic
+#   ./scripts/publish-provenance.sh consultologistpubcaeast
 set -euo pipefail
 
 CONTAINER="provenance"
