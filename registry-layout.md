@@ -22,7 +22,7 @@ with **container-level anonymous read, including listing**: a reader may enumera
 | Package format | `package-format` | single-artifact | `spec-versions.json` | yes | the index's `version` | merge to `main` in `consultologist-package-format` |
 | Provenance | `provenance` | single-artifact | `provenance-versions.json` | yes | the index's `version` | merge to `main` in `consultologist-provenance` |
 
-There is one more registry, which is **not public**: an account's own workflow packages (`acct-<12 hex>…` names) live in the same layout in a private account, written only by the engine on an authorised publish and readable only by the owning account. A reader of the public registries cannot reach them; a record that cites one is resolvable only by its owner.
+There is one more registry, which is **not public**: an account's own workflow packages (`acct-<12 hex>…` names) live in the same layout in a private account, written only by the engine on an authorised publish and readable only by the owning account. A reader of the public registries cannot reach them; a record that cites one is resolvable only by its owner — and only while that account exists: account closure removes an account's registry with the account, and the records that cited it go with it, so no ref dangles (since v2026.09.3). Public registries never close: they belong to the repository, not to an account.
 
 ## 2. Two layout families
 
