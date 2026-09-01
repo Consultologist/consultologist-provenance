@@ -134,7 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(python3 -c "import json;print(json.load(open('provenance-versions.json'))['version'])")
-          URL="https://consultologistpubcaeast.blob.core.windows.net/provenance/$VERSION/provenance-versions.json"
+          URL="https://consultpubcaeast.blob.core.windows.net/provenance/$VERSION/provenance-versions.json"
           CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
           if [ "$CODE" = "200" ]; then
             echo "::warning::provenance@$VERSION is already published — bump the version before merging"
