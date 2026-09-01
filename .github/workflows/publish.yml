@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  REGISTRY_ACCOUNT: consultologistpubcaeast
+  REGISTRY_ACCOUNT: consultpubcaeast
 
 jobs:
   publish:
@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(python3 -c "import json;print(json.load(open('provenance-versions.json'))['version'])")
-          BASE="https://consultologistpubcaeast.blob.core.windows.net/provenance"
+          BASE="https://consultpubcaeast.blob.core.windows.net/provenance"
           POINTED=$(curl -sf "$BASE/latest.json" | python3 -c "import json,sys;print(json.load(sys.stdin)['version'])")
           if [ "$POINTED" != "$VERSION" ]; then
             echo "::error::latest.json points at $POINTED but this run published $VERSION"

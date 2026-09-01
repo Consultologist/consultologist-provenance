@@ -6,10 +6,10 @@ A provenance record cites artifacts by reference — `general@v2026.08.1`, `outp
 
 ## 1. Where the registries are
 
-Every public registry is one container in the storage account `consultologistpubcaeast`, reachable at
+Every public registry is one container in the storage account `consultpubcaeast`, reachable at
 
 ```
-https://consultologistpubcaeast.blob.core.windows.net/{container}/{blob}
+https://consultpubcaeast.blob.core.windows.net/{container}/{blob}
 ```
 
 with **container-level anonymous read, including listing**: a reader may enumerate a container as well as fetch from it, which is what lets a reader discover the names a registry holds without an index of indexes. Nothing in a public registry requires a credential to read.
