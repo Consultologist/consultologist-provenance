@@ -75,17 +75,22 @@ Records stamp `hashVersion` from 2026-08-25; the first stamped definition is 5. 
 |---|---|---|---|
 | 5 (classifier output) | the normalised answer `in_scope` | `in_scope` | `9464a24113872b892e176555598c34aa1a900ae21b2a7dadc4916b40a423d0cf` |
 
+**A template node's pair** (specVersion 12, a node of kind `template`). Nothing is sent to a model: the strict-mode render of the node's prompt over its bound values *is* the output. `inputHash` and `outputHash` are therefore the same digest — SHA-256 of the rendered bytes, the message-that-would-have-been — and the row records no `tokens`. `hashVersion` does not move: 5 names the rendering, and the render is all there is.
+
 Worked examples, valid under every definition (the output side never moved): text `Hello` → `185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969`; an aggregator over sources whose output hashes are `ce812380…c970` (`Consultation note`) then `2000345f…35d4` (`Patient letter`) hashes the bytes `["ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970","2000345f16eab8ff9958974250359885ad24f13d5ffe1ea64c9ff8705fa035d4"]` → `d8429debeb9facdd005d84147a126b01bbb0b5ea60944dad1b96ee1bd2d73c8d`.
 
 ## 5. The per-document hash (`assembledDocuments[].documentHash`)
 
 SHA-256 of the document's `text`. Unversioned by design: it is the primitive definition 3 composes, and a primitive's definition cannot change without being a different function. `Consultation note` → `ce812380ce3cdf680340cb1b7e40d336685f0cc698b10a5e3277ba807361c970`.
 
-Unchanged by specVersion 11: what a package appends after the aggregated sections (a macro's expansion, a signature block) is inside `text` before the digest is taken — the definition sees one document, never a document plus attachments.
+Unchanged by specVersion 11 and 12: what a package places or appends, in document order (a macro's expansion between or after the sections, a signature block wherever its macro embeds it), is inside `text` before the digest is taken — the definition sees one document, never a document plus attachments.
 
 | Digest | Input | Bytes | SHA-256 |
 |---|---|---|---|
 | `documentHash` | a document with an appended block | `Note.\n\nAppended disclaimer.` | `4c4be8b3d6ef10d96f96d95f0cefbf81dfcf268030bf44679227b80f9c74aac3` |
+| `documentHash` (specVersion 12) | a document with a placed macro before its one section, a chosen optional macro appended, and a signature the optional macro embeds | `Standing disclaimer.\n\nThe plan.\n\nSincerely,\n\nTaylor Reyes, MD` | `c41f36a58079d55dbfedccb627d6232b98e34f879bdaafef57a4ff9e22c4ba1a` |
+
+The specVersion 12 row's `appended[]` reads, in document order: `{ kind: "macro", id: "disclaimer" }` (placed before the section), `{ kind: "macro", id: "closing" }` (the chosen optional macro, appended), `{ kind: "signature", id: "clinic-letters", asOf: "2026-09-01" }` (embedded where its macro's token sits). The digest is over the one `text` either way — placement moved bytes around, never out of the hash.
 
 ## 6. The per-input-document pair (`inputOrigins[].fileSha256`, `inputOrigins[].textSha256`)
 
