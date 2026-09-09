@@ -22,11 +22,11 @@ credential:
 
 ```
 https://consultpubcaeast.blob.core.windows.net/provenance/latest.json
-https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.5/provenance-versions.json
-https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.5/provenance-record.md
-https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.5/hash-definitions.md
-https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.5/registry-layout.md
-https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.5/LICENSE
+https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.6/provenance-versions.json
+https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.6/provenance-record.md
+https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.6/hash-definitions.md
+https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.6/registry-layout.md
+https://consultpubcaeast.blob.core.windows.net/provenance/v2026.09.6/LICENSE
 ```
 
 `latest.json` is the only mutable blob — `{"version": "vYYYY.MM.N"}`. Published
