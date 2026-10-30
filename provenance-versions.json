@@ -1,5 +1,5 @@
 {
-  "version": "v2026.10.9",
+  "version": "v2026.10.10",
   "documents": {
     "record": "provenance-record.md",
     "hashes": "hash-definitions.md",
@@ -9,7 +9,8 @@
     2,
     6,
     7,
-    8
+    8,
+    9
   ],
   "effectiveInputHashVersions": [
     1,
