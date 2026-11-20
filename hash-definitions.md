@@ -174,7 +174,7 @@ There are two comparisons of formats, each with its own hash:
   5. `title`, `$id` and the keywords strict mode rejects (such as `format: "date"`) are removed. The list of rejected keywords comes from the attested agent definition, not from the format;
   6. the result is sent inside the engine's envelope, which supplies the top-level object strict mode requires.
 
-  The removed keywords are recorded beside the hash as JSON pointers (`notSent`). **Not yet defined; settled when the engine implements it:** whether the engine's envelope (step 6) is part of the hashed bytes. The design does not say.
+  The removed keywords are recorded beside the hash as JSON pointers (`notSent`). **Not yet defined; settled when the engine implements it:** whether the engine's envelope (step 6) is part of the hashed bytes. It is an open point of this contract.
 
 A change of wording (a `description`, which is what the model is told) moves the full hash and not the type hash; a change of shape moves both.
 
