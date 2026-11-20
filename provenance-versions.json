@@ -34,5 +34,19 @@
     4,
     5,
     6
-  ]
+  ],
+  "preview": {
+    "recordStorageVersions": [
+      12
+    ],
+    "effectiveInputHashVersions": [
+      7
+    ],
+    "workflowOutputHashVersions": [
+      4
+    ],
+    "nodeHashVersions": [
+      7
+    ]
+  }
 }
