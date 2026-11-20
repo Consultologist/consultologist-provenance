@@ -89,3 +89,26 @@ Stated rather than hidden. Each has a home.
 - The `consultologist-agents` repo's publish has no manual dispatch door, no pre-merge "already published" warning, and no post-publish anonymous smoke check — the other registries have all three. Tracked in that repo.
 - Shell publishers write `latest.json` as `{"version": "v…"}` with a space and a trailing newline; the engine writes it without. Same object; § 6 says the whitespace is insignificant, and every reader agrees.
 - Public workflow packages published by CI carry no `publish.json` (the engine's publisher writes one for account packages). Tracked as consultologist-workflows#19.
+
+## 10. A specVersion 31 version folder (preview)
+
+*Preview: this is the layout of a published workflow package at specVersion 31. A package below 31 keeps the layout it has.*
+
+A version of a workflow package (§ 2, named family) published at specVersion 31 holds:
+
+```
+{name}/{version}/
+  manifest.json
+  nodes/ checks/ functions/ renderers/ snippets/ macros/ formats/ deliverables/ tests/
+                                     all nine, always, each with its index.json
+  dag.mmd                            view
+  resolve.json                       evidence: what the engine runs
+  lock.json                          evidence: what checked it
+  publish-report.json                the publish's outcome, tests included
+```
+
+- **`resolve.json`** is the package as checked, the only file the engine loads for a 31 package. **`lock.json`** is the exact toolchain that checked it. Both are canonical by RFC 8785, carry no timestamp, and are written only by publish, never accepted from an upload. The media types are `application/vnd.consultologist.resolve+json` for `resolve.json` and `application/vnd.consultologist.lock+json` for `lock.json`.
+- **The write order** extends § 5. Publish computes `sourceHash`, compiles `resolve.json` in memory and takes `resolveHash` from its canonical bytes, builds `lock.json` with `resolveHash` and takes `lockHash`, and builds the publish report with all three hashes, the time and the test results. It then writes, into `{name}/{version}/`: the source files and the regenerated `dag.mmd`, then `lock.json`, then the publish report, then **`resolve.json` last**, and then the version's **"published" stamp last**, recording `resolveHash` and `lockHash`. The hash definitions are in [hash-definitions.md § 7](hash-definitions.md).
+- **A version exists only once stamped.** The engine and the registry ignore a folder without the stamp, so a publish that dies partway can be retried, overwriting the unstamped folder. **A stamped version folder is immutable**: nothing writes to it again, and a published version is never re-resolved and never re-locked. At load the engine checks `resolve.json`'s hash, `lock.json`'s hash and `lock.json`'s `resolve.hash` against the stamp.
+- **The publish report** records the publish's outcome, the in-package test results included. Test results are never in a job's record.
+- **`dag.mmd`** is a view: regenerated at publish, never evidence.
