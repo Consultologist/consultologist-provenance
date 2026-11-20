@@ -117,3 +117,63 @@ Worked example, a text file whose bytes carry two trailing newlines — the read
 | `textSha256` | the text read from it, canonical | `Hello` | `185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969` |
 
 A file whose bytes are already canonical text has equal digests — the statement that nothing changed between the file and its reading.
+
+## 7. Definitions specVersion 31 adds (preview)
+
+*Preview: these definitions belong to record storage 12 ([provenance-record.md § 6](provenance-record.md)). `provenance-versions.json` lists their numbers under `preview`, not in the four ladders, so §§ 2–4 above are unchanged. Each is written here as a definition in prose; its row joins the table of its section, with worked examples computed by the engine, when the ladder moves. Until then nothing below is a worked example, and nothing below is compared with a definition of another number.*
+
+Hashes this section defines are written `sha256:<64 lowercase hex>`: the prefix, then the lowercase hexadecimal SHA-256. A hash of this section that is taken over a JSON document is taken over its **RFC 8785** (JSON Canonicalization Scheme) bytes, uncompressed. Compression, where a file is stored or transported compressed, is never part of what is hashed.
+
+### 7.1 The per-node definition 7 (`nodeHashVersions`)
+
+A specVersion 31 node instance stamps `hashVersion` 7 on its row. Definition 7 is defined as follows:
+
+- **The sent-text hash** is the SHA-256 of the node's rendered body with **run spots and macro markers substituted**: each run spot replaced by its formatted output and each macro marker by the macro's instruction or rendered text, as the model received it. It is the row's `inputHash`, the main hash, as in the earlier definitions.
+- **The run-neutral hash** sits beside it: the same body rendered with each run spot left as its `{{run:<n>}}` marker. It is the row's `runNeutralHash`, and is `null` when the body has no run spot, so that `inputHash` alone is then the hash.
+- Two runs are compared on the run-neutral hash; where the two hashes differ, the difference is due to run facts. The sent text is rebuilt exactly from the run-neutral text and the recorded spot outputs, each put at the position recorded while rendering.
+
+### 7.2 The effective-input definition 7 (`effectiveInputHashVersions`)
+
+Definition 7 hashes the supplied inputs as **a canonical JSON object keyed by input id**, with **Markdown inputs in their converted form**: the Markdown the converter produced from a document, not the document's bytes.
+
+### 7.3 The workflow-output definition 4 (`workflowOutputHashVersions`)
+
+Definition 4 is for **a deliverable composed from its template.** The deliverable's `composedHash` is the hash of the text the template composes, **as replayed**: substituting the recorded values into the template, in site and pass order, reproduces it ([provenance-record.md § 6.10](provenance-record.md)).
+
+### 7.4 `resolveHash` and `lockHash`
+
+- **`resolveHash`** is the SHA-256 of the canonical `resolve.json` bytes, written `sha256:<64 lowercase hex>`.
+- **`lockHash`** is the SHA-256 of the canonical `lock.json` bytes, written the same way.
+
+Both are over RFC 8785 bytes. Neither document carries a timestamp, so deriving either again from the same source with the same toolchain gives the same bytes and the same hash. Each job's record pins both. `lock.json` names the `resolveHash` of the document it belongs to; `resolve.json` names its lock by file name, because each hash would otherwise have to contain the other.
+
+### 7.5 `sourceHash`
+
+`sourceHash` is the SHA-256 of a canonical listing of the package source: a JSON array, sorted by path, of `{ "path": "<path from the package root, / separated>", "hash": "sha256:<hash of the file's bytes>" }` for every source file, canonicalised by RFC 8785. File hashes are taken **after line-ending normalisation** (`\r\n` to `\n`).
+
+- **Included:** `manifest.json` and every file under `nodes/`, `checks/`, `functions/`, `renderers/`, `snippets/`, `macros/`, `formats/`, `deliverables/` and `tests/` (every `index.json` included), and any `README.md`.
+- **Excluded:** `resolve.json`, `lock.json` and the publish report (evidence, never source), and `dag.mmd` (a view, regenerated).
+
+So `tests/` is covered by `sourceHash`, and through it by `resolveHash`, without being embedded.
+
+### 7.6 `bodyHash`
+
+`bodyHash` is on each templated entry of `resolve.json`: `sha256:` over the body's UTF-8 bytes; `null` when the entry has no body. A renderer sub-row's or a deliverable row's `templateHash` is the `bodyHash` of its renderer or template (for a built-in renderer, its template's hash at the locked version).
+
+### 7.7 The type hash, the full format hash and the sent-format hash
+
+There are two comparisons of formats, each with its own hash:
+
+- **The type hash** (`typeHash`; `resolve.json`'s `typeHashes`) hashes a format under **type equality**: references compared by name (never dereferenced), `anyOf` members and `properties` sorted by name, annotations (`title`, `description`) dropped.
+- **The full format hash** (`formatHash`; `resolve.json`'s `formatHashes`) hashes a format under **full equality**: everything dereferenced, every keyword kept. **It leaves out `$id`,** so the same shape published under two ids hashes the same. It is what a model's reply is validated against.
+- **The sent-format hash** (`sentFormatHash`) hashes the copy of the format a model receives: the full format with `title`, `$id` and the keywords strict mode rejects removed. The list of rejected keywords comes from the attested agent definition, not from the format. The removed keywords are recorded beside it as JSON pointers (`notSent`).
+
+A change of wording (a `description`, which is what the model is told) moves the full hash and not the type hash; a change of shape moves both.
+
+### 7.8 `recordHash`
+
+`recordHash` is the SHA-256 of the **canonical record document**, written `sha256:<64 lowercase hex>`. The document is assembled when delivery ends, at every terminal state: the job header (noting the end state) and every row, in key order, as RFC 8785 JSON ([provenance-record.md § 6.1.1](provenance-record.md)). It is `null` on the header until then.
+
+### 7.9 A note on short values
+
+Every hash stays on the record, short values' included. **A hash of a short value** (a name, a credentials line, a yes or no) **can be reversed by hashing likely candidates:** anyone holding the hash can hash the candidates and compare. A hash of a short value is therefore a commitment against change, not a way of hiding the value. Long texts keep their hash for verification as before.
