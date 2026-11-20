@@ -15,6 +15,10 @@ carries, and how its hashes were computed. This repo is where both live.
 | `hash-definitions.md` | every hash on a record, byte for byte, with worked examples — effective-input definitions 1–6, workflow-output definitions 1–3, the per-node and per-document hashes |
 | `registry-layout.md` | how a ref resolves to bytes: where every registry lives, the two layout families, CalVer, immutability by refusal, dependencies before the index, `latest.json` as a pointer, concrete refs in records — and the departures the current registries still have |
 
+## Preview: specVersion 31
+
+`provenance-versions.json` carries a `preview` object: record storage 12, effective-input definition 7, workflow-output definition 4 and per-node definition 7, the record and hashes of a specVersion 31 job. They are defined in `provenance-record.md` § 6, `hash-definitions.md` § 7 and `registry-layout.md` § 10, and join the four ladders when the engine ships specVersion 31. Nothing a specVersion 30 engine reads has changed, and storage 2–11 records read as before. `python3 scripts/check-v31.py` checks the preview additions.
+
 ## Reading it from the registry
 
 Every version is published to the public registry and is fetchable with no
