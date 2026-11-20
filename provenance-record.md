@@ -199,7 +199,7 @@ New members at the job level, all **write-once at job start** except `recordHash
 |---|---|---|---|
 | `resolveHash` | string (`sha256:…`) | null below 31 | the SHA-256 of the canonical `resolve.json` bytes the job ran |
 | `lockHash` | string (`sha256:…`) | null below 31 | the SHA-256 of the canonical `lock.json` bytes |
-| `versionsRan` | object | null below 31 | **the exact versions that actually ran,** which can differ from the lock within its range. It takes **exactly `lock.json`'s shape**, so the two compare member by member: `resolver`, `libraries` (`Scriban`, `Markdig`, `Corvus.Text.Json.JsonLogic`, `Corvus.JsonSchema`), `evaluator`, `operations` (those the package uses), `builtins`, `culture` (`"invariant"`) and `runtime` (the .NET runtime and its Unicode version), each as `lock.json` defines it |
+| `versionsRan` | object | null below 31 | **the exact versions that actually ran,** which can differ from the lock within its range. It takes **exactly `lock.json`'s shape**, so the two compare member by member: `resolver`, `libraries` (`Scriban`, `Markdig`, `Corvus.Text.Json.JsonLogic`, `Corvus.JsonSchema`), `evaluator`, `operations` (those the package uses), `builtins`, `culture` (`"invariant"`) and `runtime` (the .NET runtime and its Unicode version), each as `lock.json` defines it. It carries `lock.json`'s members `resolver`, `libraries`, `evaluator`, `operations`, `builtins`, `culture` and `runtime`; whether `lock.json`'s `documentVersion`, `package`, `resolve` and `catalogues` appear in it is not yet stated, and is settled when the engine implements it |
 | `recordHash` | string (`sha256:…`) | allowed | the hash of the canonical record document, sealed when delivery ends (§ 6.1.1); `null` until then, and below 31 |
 | `runFacts` | object | null below 31 | the raw value of each run fact the package reads, once per run (§ 6.8.1); `{}` when it reads none |
 | `limits` | object `{ maxAgentCalls, capacityWaitMinutes, serviceAttempts, jobMinutes, deliveryMinutes, deliveryAttempts, loopItems, jobAgentCalls, renderSteps }`, each an integer | null below 31 | every engine limit in force at job start, recorded once: the per-job ceiling on agent calls in flight (`maxAgentCalls`), the minutes a node may wait on 429s in all (`capacityWaitMinutes`), the attempts allowed for another service failure (`serviceAttempts`), the minutes a job may run from orchestration start (`jobMinutes`), the minutes delivery may take (`deliveryMinutes`) and the attempts each destination gets (`deliveryAttempts`), and the total-work limits: items per loop instance (`loopItems`), agent calls per job (`jobAgentCalls`), and steps per render (`renderSteps`) |
@@ -239,7 +239,7 @@ A production node instance's row keeps every storage 11 member (`label`, `status
 | `producer` | string | never | the node's `producer` as written and checked: `generated` on agent rows, `computed` on every other |
 | `formatHash` | string | allowed | the **full** hash of the node's resolved format (`resolve.json`'s `formatHashes`); `null` for flow kinds. With `agent`, it lets History say "the same type, served by a different agent" or the reverse |
 | `typeHash` | string | allowed | the format's **type** hash (`resolve.json`'s `typeHashes`); `null` with `formatHash` |
-| `sentFormatHash` | string | allowed | on agent rows, the hash of the format as sent to the model: `title`, `$id` and the keywords strict mode rejects removed, by the attested agent definition's list; `null` on other rows |
+| `sentFormatHash` | string | allowed | on agent rows, the hash of the format as sent to the model, the copy prepared by the steps of [hash-definitions.md § 7.7](hash-definitions.md) (`title`, `$id` and the keywords strict mode rejects removed, by the attested agent definition's list, among them); `null` on other rows |
 | `notSent` | array of string | never | on agent rows, the removed keywords as JSON pointers into the format (`/properties/onset/format`); `[]` for none. History shows *"Not sent to the model: …"*, and the reply is still validated against the full format |
 | `agent` | object | allowed | on agent rows only (§ 6.4.1); `null` otherwise |
 | `itemName` | string | allowed | the item's name from the loop's `itemLabel`, capped at 120 characters (storage 11's rule, renamed from `labelField`); kept for the life of the record **only when the label comes from package text** (a snippet folder's header); otherwise it follows 7-day retention (§ 6.11). `null` on rows outside a loop. Reasons name items by position (*Sections 3*), never by `itemName` |
@@ -532,7 +532,7 @@ A `test/general` job at 31, the assessment node in the `standards` loop, with on
       "condition": "node.standards.prescribes_letrozole.value.answer = true", "expressionHash": "sha256:…",
       "result": true,
       "reads": [ { "path": "node.standards.prescribes_letrozole.value.answer", "hash": "sha256:…" } ],
-      "runDependent": false, "decidedAtUtc": "2026-11-16T14:02:11Z" } ],
+      "runDependent": false, "modelDerived": true, "decidedAtUtc": "2026-11-16T14:02:11Z" } ],
   "nodeOutputs": {
     "node.standards.assessment:7": {
       "nodeId": "node.standards.assessment", "itemId": "7", "kind": "agent", "producer": "generated",

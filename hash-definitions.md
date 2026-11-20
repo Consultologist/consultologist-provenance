@@ -128,7 +128,7 @@ Hashes this section defines are written `sha256:<64 lowercase hex>`: the prefix,
 
 A specVersion 31 node instance stamps `hashVersion` 7 on its row. Definition 7 is defined as follows:
 
-- **The sent-text hash** is the SHA-256 of the node's rendered body with **run spots and macro markers substituted**: each run spot replaced by its formatted output and each macro marker by the macro's instruction or rendered text, as the model received it. It is the row's `inputHash`, the main hash, as in the earlier definitions.
+- **The sent-text hash** is the SHA-256 of the rendered body with run spots and macro markers substituted. It is the row's `inputHash`, the main hash, as in the earlier definitions.
 - **The run-neutral hash** sits beside it: the same body rendered with each run spot left as its `{{run:<n>}}` marker. It is the row's `runNeutralHash`, and is `null` when the body has no run spot, so that `inputHash` alone is then the hash.
 - Two runs are compared on the run-neutral hash; where the two hashes differ, the difference is due to run facts. The sent text is rebuilt exactly from the run-neutral text and the recorded spot outputs, each put at the position recorded while rendering.
 
@@ -166,7 +166,15 @@ There are two comparisons of formats, each with its own hash:
 
 - **The type hash** (`typeHash`; `resolve.json`'s `typeHashes`) hashes a format under **type equality**: references compared by name (never dereferenced), `anyOf` members and `properties` sorted by name, annotations (`title`, `description`) dropped.
 - **The full format hash** (`formatHash`; `resolve.json`'s `formatHashes`) hashes a format under **full equality**: everything dereferenced, every keyword kept. **It leaves out `$id`,** so the same shape published under two ids hashes the same. It is what a model's reply is validated against.
-- **The sent-format hash** (`sentFormatHash`) hashes the copy of the format a model receives: the full format with `title`, `$id` and the keywords strict mode rejects removed. The list of rejected keywords comes from the attested agent definition, not from the format. The removed keywords are recorded beside it as JSON pointers (`notSent`).
+- **The sent-format hash** (`sentFormatHash`) hashes the copy of the format a model receives, prepared in these steps:
+  1. each `description` is kept: it is the instruction to the model, at the top of the format and on each property; a field that `$ref`s a text format sends that text format's `description` first, then its own;
+  2. every `x-` annotation and `contentMediaType` is stripped;
+  3. a referenced text format resolves to `{ "type": "string" }`;
+  4. a labelled enum (`oneOf` of `const`/`title`) becomes a plain `enum` of the `const`s;
+  5. `title`, `$id` and the keywords strict mode rejects (such as `format: "date"`) are removed. The list of rejected keywords comes from the attested agent definition, not from the format;
+  6. the result is sent inside the engine's envelope, which supplies the top-level object strict mode requires.
+
+  The removed keywords are recorded beside the hash as JSON pointers (`notSent`). **Not yet defined; settled when the engine implements it:** whether the engine's envelope (step 6) is part of the hashed bytes. The design does not say.
 
 A change of wording (a `description`, which is what the model is told) moves the full hash and not the type hash; a change of shape moves both.
 
