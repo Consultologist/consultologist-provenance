@@ -90,11 +90,17 @@ layout = pathlib.Path("registry-layout.md").read_text()
 if "## 10. A specVersion 31 version folder (preview)" not in layout:
     errors.append("registry-layout.md has no '## 10. A specVersion 31 version folder (preview)'")
 
+# The three contract files only gain lines: nothing a storage 2-11 reader relies on changes.
+for name in ("hash-definitions.md", "provenance-record.md", "registry-layout.md"):
+    diff = subprocess.run(["git", "diff", BASE, "--unified=0", "--", name],
+                          capture_output=True, text=True, check=True).stdout
+    for line in diff.splitlines():
+        if line.startswith("-") and not line.startswith("---"):
+            errors.append(f"{name}: a line of {BASE} was removed or changed: {line[1:60]}")
+
 diff = subprocess.run(["git", "diff", BASE, "--unified=0", "--", "hash-definitions.md"],
                       capture_output=True, text=True, check=True).stdout
 for line in diff.splitlines():
-    if line.startswith("-") and not line.startswith("---"):
-        errors.append(f"hash-definitions.md: a line of {BASE} was removed or changed: {line[1:60]}")
     if line.startswith("+") and not line.startswith("+++"):
         added = line[1:]
         if added.startswith(PINNED_PREFIXES) or added.startswith("| **"):
