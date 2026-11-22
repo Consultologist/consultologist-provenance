@@ -17,7 +17,7 @@ carries, and how its hashes were computed. This repo is where both live.
 
 ## Preview: specVersion 31
 
-`provenance-versions.json` carries a `preview` object: record storage 12, effective-input definition 7, workflow-output definition 4 and per-node definition 7, the record and hashes of a specVersion 31 job. They are defined in `provenance-record.md` § 6, `hash-definitions.md` § 7 and `registry-layout.md` § 10, and join the four ladders when the engine ships specVersion 31. Nothing a specVersion 30 engine reads has changed, and storage 2–11 records read as before. `python3 scripts/check-v31.py` checks the preview additions.
+Record storage 12, effective-input definition 7, workflow-output definition 4 and per-node definition 7, the record and hashes of a specVersion 31 job, are in the four ladders of `provenance-versions.json` (its `preview` object now lists none). They are defined in `provenance-record.md` § 6, `hash-definitions.md` § 7 and `registry-layout.md` § 10. Nothing a specVersion 30 engine reads has changed, and storage 2–11 records read as before. `python3 scripts/check-v31.py` checks the specVersion 31 additions.
 
 ## Reading it from the registry
 

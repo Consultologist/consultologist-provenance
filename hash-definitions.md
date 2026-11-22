@@ -120,7 +120,7 @@ A file whose bytes are already canonical text has equal digests — the statemen
 
 ## 7. Definitions specVersion 31 adds (preview)
 
-*Preview: these definitions belong to record storage 12 ([provenance-record.md § 6](provenance-record.md)). `provenance-versions.json` lists their numbers under `preview`, not in the four ladders, so §§ 2–4 above are unchanged. Each is written here as a definition in prose; its row joins the table of its section, with worked examples computed by the engine, when the ladder moves. Until then nothing below is a worked example, and nothing below is compared with a definition of another number.*
+*These definitions belong to record storage 12 ([provenance-record.md § 6](provenance-record.md)), which a specVersion 31 job writes. Their numbers are in the four ladders of `provenance-versions.json` (its `preview` object now lists none); the tables of §§ 2–4 above are unchanged, and each definition of this section is written here, in prose. Nothing below is a worked example yet, and nothing below is compared with a definition of another number.*
 
 Hashes this section defines are written `sha256:<64 lowercase hex>`: the prefix, then the lowercase hexadecimal SHA-256. A hash of this section that is taken over a JSON document is taken over its **RFC 8785** (JSON Canonicalization Scheme) bytes, uncompressed. Compression, where a file is stored or transported compressed, is never part of what is hashed.
 
@@ -135,6 +135,8 @@ A specVersion 31 node instance stamps `hashVersion` 7 on its row. Definition 7 i
 ### 7.2 The effective-input definition 7 (`effectiveInputHashVersions`)
 
 Definition 7 hashes the supplied inputs as **a canonical JSON object keyed by input id**, with **Markdown inputs in their converted form**: the Markdown the converter produced from a document, not the document's bytes.
+
+The engine's bytes: the RFC 8785 JSON of the object whose members are the supplied inputs, each named by its id and holding the `value` of the input's read form (`{ value, content, title }`) as the job's start read it: typed text as typed, a document's text as its extraction gave it, a boolean as `true` or `false`, structure as supplied; an optional input left out is omitted. The hash is written `sha256:<64 lowercase hex>`. Each input's own hash on the job header's `inputs` is the hash, by the same rule, of that `value` alone.
 
 ### 7.3 The workflow-output definition 4 (`workflowOutputHashVersions`)
 

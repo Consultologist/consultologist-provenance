@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks the specVersion 31 preview additions to this repo.
+"""Checks the specVersion 31 additions to this repo.
 
 Run from the repository root, with origin/main fetched:  python3 scripts/check-v31.py
 Exits 1 and prints one line per failure.
@@ -11,14 +11,16 @@ import subprocess
 import sys
 
 BASE = "origin/main"
-PREVIEW = {
-    "recordStorageVersions": [12],
-    "effectiveInputHashVersions": [7],
-    "workflowOutputHashVersions": [4],
-    "nodeHashVersions": [7],
+# Consultologist-Blazor#1506 (part 08 section 13, D14): the engine writes storage 12 and definitions 7, 7 and 4, so each
+# joins its ladder (appended to main's) and the preview holds none of them.
+JOINED = {
+    "recordStorageVersions": 12,
+    "effectiveInputHashVersions": 7,
+    "workflowOutputHashVersions": 4,
+    "nodeHashVersions": 7,
 }
-UNCHANGED = ("version", "documents", "recordStorageVersions", "effectiveInputHashVersions",
-             "workflowOutputHashVersions", "nodeHashVersions")
+PREVIEW = {ladder: [] for ladder in JOINED}
+UNCHANGED = ("version", "documents")
 PINNED_PREFIXES = (
     "| `fileSha256` |", "| `textSha256` |", "| `documentHash` |", "| `documentHash` (specVersion 12) |",
     "| 6 (composed output) |", "| 6 (agentOutputHash) |",
@@ -28,7 +30,7 @@ MEMBERS = {
     "job header": "resolveHash lockHash versionsRan recordHash runFacts limits startedAtUtc "
                   "signatureBlockId signatureChosen decisions",
     "limits": "maxAgentCalls capacityWaitMinutes serviceAttempts jobMinutes deliveryMinutes "
-              "deliveryAttempts loopItems jobAgentCalls renderSteps",
+              "deliveryAttempts loopItems jobAgentCalls jobInstances renderSteps",
     "input origin": "converter parser ocr",
     "node row": "nodeId kind producer formatHash typeHash sentFormatHash notSent agent itemName "
                 "runDependent modelDerived profileCarrying runNeutralHash runSpots renders macros "
@@ -58,6 +60,9 @@ base_index = json.loads(git_show("provenance-versions.json"))
 for key in UNCHANGED:
     if index.get(key) != base_index.get(key):
         errors.append(f"provenance-versions.json: {key} differs from {BASE}")
+for ladder, number in JOINED.items():
+    if index.get(ladder) != base_index.get(ladder, []) + [number]:
+        errors.append(f"provenance-versions.json: {ladder} is not {BASE}'s with {number} appended")
 if index.get("preview") != PREVIEW:
     errors.append(f"provenance-versions.json: preview is {index.get('preview')!r}, not {PREVIEW!r}")
 extra = set(index) - set(base_index) - {"preview"}

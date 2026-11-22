@@ -124,7 +124,7 @@ Two records with the same `workflowPackage`, `catalogRef`, `effectiveInputHash` 
 
 ## 6. Storage 12 (specVersion 31, preview)
 
-*Preview: this section is the contract for the record a specVersion 31 job writes. Storage 12 is listed under `preview` in `provenance-versions.json`, not yet in `recordStorageVersions`; it joins that ladder, and the definitions of [hash-definitions.md § 7](hash-definitions.md) join theirs, when the engine ships specVersion 31. Nothing in sections 1–5 changes, and nothing the engine at specVersion 30 reads changes.*
+*This section is the contract for the record a specVersion 31 job writes. Storage 12 is in `recordStorageVersions` in `provenance-versions.json`, and the definitions of [hash-definitions.md § 7](hash-definitions.md) are in theirs (its `preview` object now lists none). Nothing in sections 1–5 changes, and nothing the engine at specVersion 30 reads changes.*
 
 Names are written in the record's JSON form (camelCase, as this document writes them everywhere). The record is **keyed with roots**, **kept as rows**, and **sealed into one document** whose hash is on its header. Each member below is given with its type and its null rule: *never* means the member is always written and never `null`; *allowed* means `null` is a value the engine writes; *null below 31* means a record of storage 2–11 has no such member and a reader reads it as `null`. **Every member is written** by a storage 12 record, even where its value is `null` or empty.
 
