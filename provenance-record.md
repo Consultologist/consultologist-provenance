@@ -245,7 +245,7 @@ New members at the job level, all **write-once at job start** except `recordHash
 | `effectiveInputHash` | string (`sha256:…`) | allowed | the hash of the job's inputs as storage 11 defines it, at `effectiveInputHashVersion` |
 | `effectiveInputHashVersion` | integer | allowed | `7` at 31 ([hash-definitions.md § 7](hash-definitions.md)) |
 | `inputs` | array of input | never | each input, by `id` in ordinal order (§ 6.3.1); `[]` for none |
-| `tokens` | object `{ input: integer, output: integer, total: integer }` | allowed | the job's token totals: the sums of its agent rows' `tokens` (§ 6.4); `null` when the job made no model call |
+| `tokens` | object `{ input: integer, output: integer, total: integer }` | allowed | the job's token totals: `input`, `output` and `total`, each the sum of its agent rows' `tokens` member of that name (§ 6.4); `null` when the job made no model call |
 
 **Unchanged and still recorded:** `packageSpecVersion` (31), `workflowPackage`, `packageFormatRef`, `provenanceRef`, `formatsRef`, `catalogRef`, `engineCommit`, `engineRelease`, `apiHost`, the terminology snapshot (`terminology`; `null` at 31, since a 31 job's start reads no terminology server, and written all the same). `formatsRef` and the agents catalogue version now also appear in `lockHash`'s document; the header keeps them for readers of older records.
 
