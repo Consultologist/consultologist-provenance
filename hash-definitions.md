@@ -176,14 +176,34 @@ There are two comparisons of formats, each with its own hash:
   5. `title`, `$id` and the keywords strict mode rejects (such as `format: "date"`) are removed. The list of rejected keywords comes from the attested agent definition, not from the format;
   6. the result is sent inside the engine's envelope, which supplies the top-level object strict mode requires.
 
-  The removed keywords are recorded beside the hash as JSON pointers (`notSent`). **Not yet defined; settled when the engine implements it:** whether the engine's envelope (step 6) is part of the hashed bytes. It is an open point of this contract.
+  The removed keywords are recorded beside the hash as JSON pointers (`notSent`). **The hash is taken after step 5 and before step 6:** the engine's envelope is not part of the hashed bytes; it is identified by the engine version (the header's `engineCommit` and `engineRelease`), and an object root is sent unwrapped, only a non-object root being wrapped as `{ value: … }`.
 
 A change of wording (a `description`, which is what the model is told) moves the full hash and not the type hash; a change of shape moves both.
 
 ### 7.8 `recordHash`
 
-`recordHash` is the SHA-256 of the **canonical record document**, written `sha256:<64 lowercase hex>`. The document is assembled when delivery ends, at every terminal state: the job header (noting the end state) and every row, in key order, as RFC 8785 JSON ([provenance-record.md § 6.1.1](provenance-record.md)). It is `null` on the header until then.
+`recordHash` is the SHA-256 of the **canonical record document**, written `sha256:<64 lowercase hex>`: the lowercase hex of the SHA-256 over the document's UTF-8 bytes, which are its RFC 8785 JSON. The document is assembled when delivery ends, at every terminal state ([provenance-record.md § 6.1.1](provenance-record.md)), and is laid out as [provenance-record.md § 6.1.2](provenance-record.md) says: the job header (noting the end state), then `decisions`, `nodeOutputs`, `checks` and `deliverables` (each with its `deliveries`), every row in key order. It leaves out `recordHash`, `textDroppedAtUtc` and History's event log, and it holds no retained text, so the hash holds for the record's whole life, before and after the 7-day text drop. It is `null` on the header until the document is sealed, and the first hash written is the one kept.
 
-### 7.9 A note on short values
+### 7.9 The hash of a read value
+
+A hash of a value a rule read (a decision's `reads`, a check's `reads` and `checked`, a computed row's reads, an argument of a call) is the SHA-256 of the value's **RFC 8785 JSON**, written `sha256:<64 lowercase hex>`: a string is hashed with its quotes, a number and a boolean as written, and **a value that is `null` or absent hashes as the text `null`**. The value itself is never recorded.
+
+### 7.10 `inputHash` and `runNeutralHash` of a computed value
+
+For a `computed` node and for a check, `inputHash` is the hash of the RFC 8785 JSON of `{ "expression": <the canonical rule>, "reads": [ { "path": <path>, "hash": <hash of the read value, § 7.9> } … ] }`, the reads in ordinal order of their `path`: it covers the expression and the values it read. When the row is run-dependent, `runNeutralHash` is the hash of the same document with the `hash` member left out of each read of a run-dependent value (the `path` stays): it covers the expression and its other reads, not the value that depends on the run. It is `null` when the row is not run-dependent. A row's `outputHash` is the hash of its `.content`, as in § 7.1.
+
+### 7.11 `expressionHash`
+
+A decision's `expressionHash` is the SHA-256 of the RFC 8785 JSON of the JSON Logic rule the printed condition came from, written `sha256:<64 lowercase hex>`. For a `case`, the rule is `{ "var": <the subject's path> }`, since the arms have no expression of their own. A decision with no rule hashes the text `null`.
+
+### 7.12 Substitution hashes and positions
+
+Each substitution of a deliverable's template is recorded with the SHA-256 of **the text it wrote** (`hash`, over the UTF-8 bytes of the text, as `composedHash` is), and with where that text sits in the composed text: `start` and `size`, **counted in runes** (Unicode scalar values, the way a person counts characters; never UTF-16 code units or bytes), from `0`. A substitution that writes nothing (a value that is `null`) has `size` `0`. **Replay is by position, never by search:** take the composed text's runes from `start` for `size` runes, hash that slice as text, and compare it to `hash`; the substitutions, in site and pass order, never overlap and each begins at or after the end of the one before it. A run spot's `start` and `length`, and a renderer sub-row's `outputLength`, count runes in the same way.
+
+### 7.13 `itemNameHash`
+
+When a row does not keep an item's name (the name comes from an input or a model, not package text), `itemNameHash` is the SHA-256 of the name's UTF-8 bytes, written `sha256:<64 lowercase hex>`. The name itself is in the retained text, under the 7-day retention ([provenance-record.md § 6.11](provenance-record.md)).
+
+### 7.14 A note on short values
 
 Every hash stays on the record, short values' included. **A hash of a short value** (a name, a credentials line, a yes or no) **can be reversed by hashing likely candidates:** anyone holding the hash can hash the candidates and compare. A hash of a short value is therefore a commitment against change, not a way of hiding the value. Long texts keep their hash for verification as before.

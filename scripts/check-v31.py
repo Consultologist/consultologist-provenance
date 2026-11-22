@@ -45,6 +45,16 @@ MEMBERS = {
     "run spot": "site valueHash output",
     "deliverable row": "templateHash format state check delivery sites substitutions",
     "delivery row": "kind result reason atUtc attempts",
+    # Task 14 (Consultologist-Blazor#1506): what the build settled beyond part 08's first tables.
+    "job header, as built": "schemaVersion jobId status error createdAtUtc completedAtUtc effectiveInputHash "
+                            "effectiveInputHashVersion inputs tokens elements origin hash",
+    "canonical document": "decisions nodeOutputs checks deliverables deliveries recordHash textDroppedAtUtc history",
+    "node row, as built": "itemId itemNameHash positionName function depth units",
+    "loop, while and pass rows": "parallel maxParallel itemLabel count stopped max checkFirst passes pass reason",
+    "run spot and substitution": "pass start length size",
+    "check row, as built": "passed total uncoveredHash uncoveredSize untestedHash untestedSize stateReason itemNameHash",
+    "deliverable row, as built": "label hashVersion units profileReads at expr loop",
+    "delivery row, as built": "key deliverable",
 }
 
 errors = []
