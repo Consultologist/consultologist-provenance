@@ -165,7 +165,7 @@ The sealed record is one JSON document, written as RFC 8785 canonical JSON in UT
 
 The document **leaves out** what changes after the end of the job, so it can be hashed once: `recordHash` itself, `textDroppedAtUtc`, and History's event log (`history`); and it never holds retained text (§ 6.11). The header notes the end state: `status` (`Completed`, `Failed` or `Cancelled`), `completedAtUtc` and `error`.
 
-**`recordHash`** is `sha256:` and the lowercase hex of the SHA-256 over the document's UTF-8 bytes ([hash-definitions.md § 7](hash-definitions.md)). It is written once on the job header and never changes, before or after the text drop, since the document holds no retained text. Rows stored twice with the same bytes are one row; two different rows under one key are an engine fault, and the record is not sealed.
+**`recordHash`** is `sha256:` and the lowercase hex of the SHA-256 over the document's UTF-8 bytes ([hash-definitions.md § 7](hash-definitions.md)). It is written once on the job header and never changes, before or after the text drop, since the document holds no retained text. Rows stored twice with the same bytes are one row. A second, different row under a key already stored is refused: the first row stays, the job fails as an engine fault, and its record is sealed with the first row. **Once a job is terminal its header never changes,** so a canonical document assembled again from the rows (when its blob is gone) hashes to the same `recordHash`.
 
 ### 6.2 Keys
 
@@ -245,9 +245,9 @@ New members at the job level, all **write-once at job start** except `recordHash
 | `effectiveInputHash` | string (`sha256:…`) | allowed | the hash of the job's inputs as storage 11 defines it, at `effectiveInputHashVersion` |
 | `effectiveInputHashVersion` | integer | allowed | `7` at 31 ([hash-definitions.md § 7](hash-definitions.md)) |
 | `inputs` | array of input | never | each input, by `id` in ordinal order (§ 6.3.1); `[]` for none |
-| `tokens` | object | allowed | the job's token totals; `null` in this build: the tokens are on the agent rows (`tokens`, § 6.4) |
+| `tokens` | object `{ input: integer, output: integer, total: integer }` | allowed | the job's token totals: the sums of its agent rows' `tokens` (§ 6.4); `null` when the job made no model call |
 
-**Unchanged and still recorded:** `packageSpecVersion` (31), `workflowPackage`, `packageFormatRef`, `provenanceRef`, `formatsRef`, `catalogRef`, `engineCommit`, `engineRelease`, `apiHost`, the terminology snapshot. `formatsRef` and the agents catalogue version now also appear in `lockHash`'s document; the header keeps them for readers of older records.
+**Unchanged and still recorded:** `packageSpecVersion` (31), `workflowPackage`, `packageFormatRef`, `provenanceRef`, `formatsRef`, `catalogRef`, `engineCommit`, `engineRelease`, `apiHost`, the terminology snapshot (`terminology`; `null` at 31, since a 31 job's start reads no terminology server, and written all the same). `formatsRef` and the agents catalogue version now also appear in `lockHash`'s document; the header keeps them for readers of older records.
 
 **Retired at 12** (never written by a 31 job; older records are read exactly as before): `macroChoices` and `excludedMacros`, since per-run macro choices are boolean inputs at 31 and their effect is recorded as decisions (§ 6.5), and `classifications`, since every classifier is an ordinary agent node with its own row.
 
@@ -261,7 +261,7 @@ Each **document-filled input**, and each document element of a mixed array, reco
 | `parser` | object `{ name: string, version: string }` | allowed | the parsing library and its version (PdfPig, DocumentFormat.OpenXml, …); `null` where the step wasn't used |
 | `ocr` | object `{ service: string, model: string }` | allowed | the OCR service and model version, when OCR ran; `null` when it didn't |
 
-An input in the header is `{ id, origin, hash }`: its `id`, its `origin` (below) and the hash of its value as `effectiveInputHash` takes it, never the value. An input a document filled adds the members above and `kind`, `extractor`, `pageCount`, `fileSha256` and `textSha256`; an input of several elements lists them, in order, as `elements`, each with its own `origin` and, for a document, those members. In an `ocr` object, `service` and `model` are the OCR service and its model. `extractor` stays for older records. A later milestone builds on them: [#1438](https://github.com/Consultologist/Consultologist-Blazor/issues/1438).
+An input in the header is `{ id, origin, hash }`: its `id`, its `origin` (below) and the hash of its value as `effectiveInputHash` takes it, never the value. An input a document filled adds the members above and `kind`, `extractor`, `pageCount`, `fileSha256` and `textSha256`; an input of several elements lists them, in order, as `elements`, each with its own `origin` and, for a document, those members. In an `ocr` object, `service` and `model` are the OCR service and its model. `extractor` (the extraction's name and version, as storage 11 writes it) stays, for readers of older records. A later milestone builds on them: [#1438](https://github.com/Consultologist/Consultologist-Blazor/issues/1438).
 
 **An input element from a previous run's deliverable** starts out **model-derived**, and its origin links to the job it came from. Typed text and uploaded documents start clean.
 
@@ -269,7 +269,7 @@ An input in the header is `{ id, origin, hash }`: its `id`, its `origin` (below)
 
 ### 6.4 Node rows
 
-A production node instance's row keeps every storage 11 member (`label`, `status`, `inputHash`, `outputHash`, `hashVersion`, `tokens`, `validation`, `reason`, the clock and failure members, …) and gains the members below.
+A production node instance's row keeps storage 11's members (`label`, `status`, `inputHash`, `outputHash`, `hashVersion`, `tokens`, and the clock members `startedAtUtc`, `completedAtUtc` and `durationMs`), some under their storage 12 names: storage 11's `validation` is `invalid`, and its `reason` and failure members are `stateReason`. It gains the members below.
 
 | Member | Type | Null | Meaning |
 |---|---|---|---|
@@ -300,6 +300,9 @@ A production node instance's row keeps every storage 11 member (`label`, `status
 | `retries` | array of `{ atUtc: string, waitMs: integer, kind: "capacity" \| "service", error: string \| null }` | never | each retry the call needed, with its back-off: `kind` is `"capacity"` for a 429 and `"service"` for another service failure; `error` is that failure's kind (`"timeout"`, `"5xx"`, `"connection"`), never its content, and `null` for capacity. `[]` for none |
 | `profileReads` | array of `{ field: string, hash: string }` | never | each `profile.*` read by a macro body placed in this node's prompt, by hash (§ 6.9); `[]` for none |
 | `stateReason` | string | allowed | the sentence for a row that didn't complete: *skipped: …* (§ 6.5), *not run: beyond max <n>*, or a failure's reason (a `matches` text over 1 MiB; the model service's limits or a total-work limit); for a row still running when the job limit passed, `cancelled` with *cancelled: the job didn't finish within <n> minutes*; `null` when completed |
+| `startedAtUtc` | string | allowed | storage 11's clock: when the instance started, as round-trip UTC text from the orchestration's replay-safe clock: an agent or render call sent, a computed node evaluated, a flow node first stepped, a loop item's or a pass's frame opened. `null` for a row that never started (skipped, not run, or refused by a limit before it started) |
+| `completedAtUtc` | string | allowed | when the row settled, from the same clock; `null` with `startedAtUtc` |
+| `durationMs` | integer | allowed | the whole milliseconds from `startedAtUtc` to `completedAtUtc`; `null` with them |
 
 **`cancelled`** is a row state at 12: an activity still running when the job limit passes is recorded `cancelled`, and its late result, if one arrives, is ignored and never written.
 
@@ -445,6 +448,7 @@ Snippet folder items have no `if`, so there's no per-item site. A body `if` in a
 | `uncoveredHash`, `untestedHash` | string | allowed | the canonical hash of the `check_result`'s `uncovered` and `untested` lists; `null` when the list is `null` |
 | `uncoveredSize`, `untestedSize` | integer | allowed | the number of elements in those lists; `null` with the hash |
 | `count` | integer | allowed | on a check loop's own row, its item count; `null` on others |
+| `startedAtUtc`, `completedAtUtc`, `durationMs` | string, string, integer | allowed | as on node rows (§ 6.4) |
 
 The `check_result`'s `uncovered` and `untested` lists come from inputs, so they follow the text retention rule: shown while retained, then deleted, with their hash kept for good (§ 6.11). Its `passed` and `total` counts are kept. This holds for every package. Check operations judge only `completed` items and always return a `check_result`.
 
@@ -526,6 +530,7 @@ A deliverable's row keeps storage 11's members (its id, state, `composedHash`) a
 | `renders` | array of renderer sub-row | never | as on node rows (§ 6.4.2) |
 | `runNeutralHash`, `runSpots` | | | as on node rows (§ 6.8.2) |
 | `modelDerived`, `runDependent`, `profileCarrying` | boolean | never | as on node rows |
+| `startedAtUtc`, `completedAtUtc`, `durationMs` | string, string, integer | allowed | as on node rows (§ 6.4): its render sent, and its outcome decided |
 
 **A delivery row** is written for each destination of a released deliverable, keyed `delivery:<deliverable>/<destination>`, and is the one place a result is recorded:
 
