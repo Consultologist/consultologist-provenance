@@ -135,13 +135,15 @@ Names are written in the record's JSON form (camelCase, as this document writes 
 - **A 31 job is stamped `schemaVersion` 12 from its creation,** on every path, as a 30 job is stamped 11.
 - **Storage 2–11 records read as before; nothing is converted.** Jobs that ran before 31 carry no `resolveHash` or `lockHash`.
 - **Everything storage 11 holds keeps its meaning:** paths for item keys, `loopInstances`, `while` rows with `passes` and `stopped`, the not-run state, item progress per loop, the 120-character item name. The `let` row of storage 11 is the `computed` row at 12, with `producer: computed` as before. At 12 **every row records the node's `producer`** (§ 6.4).
-- **The record holds hashes, ids, counts, reasons and names, never element values,** with the exceptions storage 11 made (an item name drawn from a field) and the ones this section adds: run facts and run spot outputs (§ 6.8), and printed conditions (§ 6.5), which are package text.
+- **The record holds hashes, ids, counts, reasons and names, never element values,** with the exceptions storage 11 made (an item name, now only when it comes from package text) and the ones this section adds: run facts and the outputs of run spots that read raw `run.*` facts (§ 6.8), and printed conditions (§ 6.5), which are package text.
 
 #### 6.1.1 Where the record is stored and sealed
 
 At storage 11 the record lives in the job's Durable entity state. **At 12 it moves:**
 
 - **Each record row is one table row,** written once when the row finishes and never rewritten. The partition key is the job id; the row key is the rooted row key (§ 6.2.1) escaped for Azure Tables, with the true key kept as a property (`key`). Node, check, call, deliverable and decision rows are all stored this way; sub-rows (§ 6.2.3) stay inside their row.
+- **Retained text is never in a row.** Every text § 6.11's right-hand column names lives in the job's text blobs, beside the record. A row member that would hold such a text holds `null` and its hash instead (`itemName` with `itemNameHash`, § 6.4; a run spot's `output`, § 6.8.2). So the sweep deletes blobs and never rewrites a row, and `recordHash` can be proved for the record's whole life.
+- **Where each thing is stored.** Rows are in the table `ConsultGenerationRecordRows`: partition key the job id, row key the escaped row key, and the properties `key`, `section` (`node`, `check`, `deliverable`, `delivery` or `decision`), `row` (the row's canonical JSON, continued in `row1`, `row2`… past 30,000 characters) and `hash`. Retained text is in the blobs `{appUserId}/{jobId}/text/{sha256 hex of the key}.{part}.json` in the account's outputs container, `part` being `produced` (written by the activity that made the text) or `settled` (written with the row). The canonical record document is the blob `{appUserId}/{jobId}/record.json` in the same container, which the sweep never deletes.
 - **A row write is insert-if-absent,** keyed by job and rooted key: an identical second write (a Durable replay) is a no-op; a differing one is refused and recorded as an engine fault.
 - **A job that has finished producing and has deliveries to make is `delivering`,** shown as *"Delivering…"*, between producing and its terminal state. The document is viewable throughout. Each delivery attempt is a row in the same record, keyed `delivery:<deliverable>/<destination>` (§ 6.10), so nothing is recorded on a deliverable's row after the job completes.
 - **The record is sealed when delivery ends,** not before. At every terminal state (completed, failed, cancelled or timed out), **a canonical record document** is assembled from the rows into a blob: the job header (§ 6.3), noting the end state, and every row, in key order, as RFC 8785 JSON. It is what History's download and the export serve, and **one hash over the whole record** (`recordHash`) is taken over its bytes and written on the header ([hash-definitions.md § 7](hash-definitions.md)).
@@ -163,7 +165,9 @@ check.part_coverage.coverage                  a check inside a check loop
 deliverable.emr.note                          deliverables/emr/note.md
 ```
 
-**A row key** is the rooted key, then `:` and the item path for an instance inside a loop or a `while` (the path grammar of storage 11, unchanged): `node.sections.paragraphs.draft_paragraph:2/1`, `node.refine.judge:3`, `node.standards.section.standard_draft:3`, `check.part_coverage.coverage:2`. `.` separates scopes, `/` separates path segments and `:` separates the key from the path; no id or item id contains any of the three, and item paths never contain `:`.
+**A row key** is the rooted key, then `:` and the ids of the items the instance sits in, from the outermost loop inward, joined by `/`; and `#<n>` for a pass of a `while`, written where the `while` sits in that path: `node.sections.paragraphs.draft_paragraph:2/1`, `node.refine.judge#3` (the third pass of `refine`), `node.refine.sections#2:3` (item 3 of the second pass), `node.standards.section.standard_draft:3`, `check.part_coverage.coverage:2`. `.` separates scopes, `/` separates item ids, `:` separates the key from the path and `#` marks a pass; **no id or item id contains any of the four,** and item paths never contain `:` or `#`.
+
+**Item ids are 1-based everywhere a person sees them:** a loop's items by position, array inputs included (an array input's first element is item `1`, as the other loops' items always were).
 
 **Function calls:** inner rows are keyed through the call node's rooted key, never the function's name. The function's name is on the call's row (§ 6.7). Two calls to the same function get different keys from their call nodes.
 
@@ -186,10 +190,12 @@ Some rows have sub-rows that live **inside** their row, not in `nodeOutputs`. Ea
 
 | Sub-row | Id |
 |---|---|
-| a renderer use | `<row key>/render:<n>`, `n` its 1-based position in the body: `node.identify_problem/render:1`, `node.sections.paragraphs.draft_paragraph:2/1/render:1` |
+| a renderer use | `<row key>/render:<n>`, `n` its 1-based number among the renderer uses of the whole entry, counted across every unit its text could place (the prompt, its parts, its snippets and macros), placed or not, so the ids of one row may have gaps: `node.identify_problem/render:1`, `node.sections.paragraphs.draft_paragraph:2/1/render:1` |
 | a macro row | `<row key>/macro:<macro id>`: `node.assessment/macro:letrozole_prescription_text` |
-| a run spot | `<row key>/spot:<n>` |
+| a run spot | `<row key>/spot:<n>`, `n` its 1-based order of filling |
 | a decision | `<owner key>/if:<site>` (§ 6.5.2): `node.standards.assessment:7/if:macro.letrozole_prescription_text` |
+
+**A renderer use or a run spot inside a template `for` repeats per iteration.** Each sub-row then carries `pass`, an array of integers or `null`: one number per enclosing template loop, 1-based, as a substitution's (§ 6.10). `render:<n>`'s `<n>` stays the use's number in the entry, and a run spot's id is `<row key>/spot:<n>` with `<n>` the 1-based order in which the spots were filled, its `site` staying the body's site number. An id and its `pass` name one sub-row.
 
 ### 6.3 The job header
 
@@ -199,10 +205,10 @@ New members at the job level, all **write-once at job start** except `recordHash
 |---|---|---|---|
 | `resolveHash` | string (`sha256:…`) | null below 31 | the SHA-256 of the canonical `resolve.json` bytes the job ran |
 | `lockHash` | string (`sha256:…`) | null below 31 | the SHA-256 of the canonical `lock.json` bytes |
-| `versionsRan` | object | null below 31 | **the exact versions that actually ran,** which can differ from the lock within its range. It takes **exactly `lock.json`'s shape**, so the two compare member by member: `resolver`, `libraries` (`Scriban`, `Markdig`, `Corvus.Text.Json.JsonLogic`, `Corvus.JsonSchema`), `evaluator`, `operations` (those the package uses), `builtins`, `culture` (`"invariant"`) and `runtime` (the .NET runtime and its Unicode version), each as `lock.json` defines it. It carries `lock.json`'s members `resolver`, `libraries`, `evaluator`, `operations`, `builtins`, `culture` and `runtime`; whether `lock.json`'s `documentVersion`, `package`, `resolve` and `catalogues` appear in it is not yet stated, and is settled when the engine implements it |
+| `versionsRan` | object | null below 31 | **the exact versions that actually ran,** which can differ from the lock within its range. It is `lock.json`'s **nested shape minus `documentVersion`, `package` and `resolve`** (the record already holds their hashes), so the two compare member by member: `{ resolver: { packageFormat, dialect }, libraries, evaluator, operations, builtins, culture, runtime: { dotnet, unicode }, catalogues: { agents, formats, outputContracts } }`. `libraries` holds `Scriban`, `Markdig`, `Corvus.Text.Json.JsonLogic` and `Corvus.JsonSchema`; `operations` those the package uses; `culture` is `"invariant"`; `runtime` the .NET runtime and its Unicode version; `catalogues` the three catalogue versions the job ran, `outputContracts` `null` when the package uses none; each as `lock.json` defines it |
 | `recordHash` | string (`sha256:…`) | allowed | the hash of the canonical record document, sealed when delivery ends (§ 6.1.1); `null` until then, and below 31 |
 | `runFacts` | object | null below 31 | the raw value of each run fact the package reads, once per run (§ 6.8.1); `{}` when it reads none |
-| `limits` | object `{ maxAgentCalls, capacityWaitMinutes, serviceAttempts, jobMinutes, deliveryMinutes, deliveryAttempts, loopItems, jobAgentCalls, renderSteps }`, each an integer | null below 31 | every engine limit in force at job start, recorded once: the per-job ceiling on agent calls in flight (`maxAgentCalls`), the minutes a node may wait on 429s in all (`capacityWaitMinutes`), the attempts allowed for another service failure (`serviceAttempts`), the minutes a job may run from orchestration start (`jobMinutes`), the minutes delivery may take (`deliveryMinutes`) and the attempts each destination gets (`deliveryAttempts`), and the total-work limits: items per loop instance (`loopItems`), agent calls per job (`jobAgentCalls`), and steps per render (`renderSteps`) |
+| `limits` | object `{ maxAgentCalls, capacityWaitMinutes, serviceAttempts, jobMinutes, deliveryMinutes, deliveryAttempts, loopItems, jobAgentCalls, jobInstances, renderSteps }`, each an integer | null below 31 | every engine limit in force at job start, recorded once: the per-job ceiling on agent calls in flight (`maxAgentCalls`), the minutes a node may wait on 429s in all (`capacityWaitMinutes`), the attempts allowed for another service failure (`serviceAttempts`), the minutes a job may run from orchestration start (`jobMinutes`), the minutes delivery may take (`deliveryMinutes`) and the attempts each destination gets (`deliveryAttempts`), and the total-work limits: items per loop instance (`loopItems`), agent calls per job (`jobAgentCalls`), the instances one job may open (`jobInstances`: a node, check or deliverable instance, a loop item, a pass or a call) and steps per render (`renderSteps`) |
 | `startedAtUtc` | string | never | when the job's orchestration started; the job limit is timed from here, not from creation or scheduling, so time queued or waiting behind a drain doesn't count |
 | `signatureBlockId` | string | allowed | the profile signature block the job used, by **id**, never its text; `null` when the package doesn't read `profile.signature` |
 | `signatureChosen` | `"default"` or `"job"` | allowed | whether the block was the account's chosen block (`ChosenId`) or picked on the Create page for this job; `null` with `signatureBlockId` |
@@ -239,10 +245,13 @@ A production node instance's row keeps every storage 11 member (`label`, `status
 | `producer` | string | never | the node's `producer` as written and checked: `generated` on agent rows, `computed` on every other |
 | `formatHash` | string | allowed | the **full** hash of the node's resolved format (`resolve.json`'s `formatHashes`); `null` for flow kinds. With `agent`, it lets History say "the same type, served by a different agent" or the reverse |
 | `typeHash` | string | allowed | the format's **type** hash (`resolve.json`'s `typeHashes`); `null` with `formatHash` |
-| `sentFormatHash` | string | allowed | on agent rows, the hash of the format as sent to the model, the copy prepared by the steps of [hash-definitions.md § 7.7](hash-definitions.md) (`title`, `$id` and the keywords strict mode rejects removed, by the attested agent definition's list, among them); `null` on other rows |
+| `sentFormatHash` | string | allowed | on agent rows, the hash of the **stripped** format, taken **before** it is wrapped: `title`, `$id` and the keywords strict mode rejects removed, by the attested agent definition's list, the copy prepared by the steps of [hash-definitions.md § 7.7](hash-definitions.md). The envelope is identified by the engine version, not by this hash, and an object root is sent unwrapped; only a non-object root is wrapped as `{ value: … }`. `null` on other rows |
 | `notSent` | array of string | never | on agent rows, the removed keywords as JSON pointers into the format (`/properties/onset/format`); `[]` for none. History shows *"Not sent to the model: …"*, and the reply is still validated against the full format |
 | `agent` | object | allowed | on agent rows only (§ 6.4.1); `null` otherwise |
-| `itemName` | string | allowed | the item's name from the loop's `itemLabel`, capped at 120 characters (storage 11's rule, renamed from `labelField`); kept for the life of the record **only when the label comes from package text** (a snippet folder's header); otherwise it follows 7-day retention (§ 6.11). `null` on rows outside a loop. Reasons name items by position (*Sections 3*), never by `itemName` |
+| `units` | array of `{ site: string, hash: string, sent: boolean }` | never | on agent rows, each part and snippet the prompt placed, by its site and the hash of its rendered text; `[]` for none. `sent` is `false` for a snippet substituted into a body that is not sent to the model (a macro's), which History shows as *"substituted, not sent"*. The record keeps the whole of what an agent turn finishes with: `notSent`, `sentFormatHash`, `units`, the macro rows and the run spots |
+| `tokens` | object `{ input: integer, output: integer, total: integer }` | allowed | on agent rows, the tokens the node's calls spent, summed over its attempts; `null` on other rows |
+| `itemName` | string | allowed | the item's name from the loop's `itemLabel`, capped at 120 characters (storage 11's rule, renamed from `labelField`); **in the row only when the label comes from package text** (a snippet folder's header), and then kept for the life of the record. Otherwise it is `null` and the name is in the retained text, deleted 7 days after completion (§ 6.11); a row never holds retained text (§ 6.1.1). `null` on rows outside a loop. Reasons name items by position (*Sections 3*), never by `itemName` |
+| `itemNameHash` | string | allowed | the hash of the item's name when `itemName` is `null` for the reason above; `null` when `itemName` holds the name or the row is outside a loop |
 | `runDependent` | boolean | never | `true` when the row's value depends on `run.*`, transitively: the node's `runDependent` as written and checked |
 | `modelDerived` | boolean | never | `true` when the row's value is computed from a model's output, directly or through other values. Every agent row is `true`. History, the diagram and the Editor show it (*"computed from model text: node.draft"*). The node's `modelDerived` as written and checked; requiring either flag in a read is later work, [#1478](https://github.com/Consultologist/Consultologist-Blazor/issues/1478) |
 | `profileCarrying` | boolean | never | `true` when the row's value carries text a profile-reading macro body was substituted into, directly or through other values. The node's `profileCarrying` as written and checked |
@@ -284,9 +293,10 @@ The agents catalogue's version is in `lock.json`; the record doesn't repeat it p
 | `templateHash` | string | never | the renderer's `bodyHash` in `resolve.json`, or for a built-in renderer its template's hash at the locked version |
 | `source` | string | never | the path piped in (`node.extract.value`), or the previous step's sub-row id in a chain |
 | `inputHash` | string | never | the hash of the piped value (canonical JSON for data, UTF-8 for text) |
+| `pass` | array of integer | allowed | one number per enclosing template loop, 1-based; `null` when the use is in no template loop (§ 6.2.3) |
 | `inputSize` | string | allowed | a size summary from the input's format, for example `"14 concepts"`; `null` when none applies |
 | `outputHash` | string | never | the hash of the rendered text |
-| `outputLength` | integer | never | the rendered text's length in characters |
+| `outputLength` | integer | never | the rendered text's length **in runes** |
 | `runDependent` | boolean | never | `true` when the piped value is a `run.*` fact or run-dependent; the run spot then covers the whole pipeline |
 
 The input value and rendered text are produced text, under the 7-day retention (§ 6.11).
@@ -301,10 +311,12 @@ The input value and rendered text are produced text, under the 7-day retention (
 | `macro` | string | never | `macro.<id>` |
 | `offered` | boolean | never | whether the macro's `if` (and its folder's) held, and, when a part's text places it, the part's `if` too, so its instruction was added to the prompt |
 | `decisions` | array of string | never | the decision ids (§ 6.5) its offer depended on: the macro's `if`, its folder's, and the placing part's, when they're not `null`; `[]` when all are `null` |
-| `classifier` | string | allowed | the row key of the classifier node its `if` read, linking to that row, where History shows the `judgement`'s `reason` beside its `answer`; `null` when it read none |
+| `classifier` | string | allowed | the row key of the classifier node its `if` read, linking to that row, where History shows the `judgement`'s `reason` beside its `answer`; **`null` unless the `if` reads exactly one node.** Several classifiers for one value is later work, [#1416](https://github.com/Consultologist/Consultologist-Blazor/issues/1416) |
 | `placed` | boolean | never | `true` when the marker was found **exactly once**, in the form its instruction asked for; `false` when not offered, or when the check failed |
 | `form` | `"block"` or `"inline"` | allowed | the form the instruction asked for; `null` when not offered |
-| `contentHash` | string | allowed | the hash of the macro's rendered body as substituted; `null` when not offered |
+| `contentHash` | string | allowed | the hash of the macro's rendered body as substituted, taken after the body's one final line ending is dropped; `null` when not offered |
+| `runNeutralHash` | string | allowed | the hash of the body with each of its run spots left as its `{{run:<n>}}` marker; `null` when the body reads no `run.*`, so `contentHash` alone is the hash. A macro body's `run.*` is filled in directly, with no spot in the placing body, so the macro row carries its own (§ 6.8.2) |
+| `runSpots` | array of run spot | never | the body's run spots (§ 6.8.2), each `<macro row id>/spot:<n>`; `[]` for none |
 
 If the marker was missing, repeated or altered, the node's `onInvalid` outcome is on the node's row (`invalid`), not here. Profile reads in macro bodies are the node's `profileReads`. **The same macro used twice in one template** is later work: [#1457](https://github.com/Consultologist/Consultologist-Blazor/issues/1457).
 
@@ -321,11 +333,13 @@ If the marker was missing, repeated or altered, the node's `onInvalid` outcome i
 | `site` | string | never | what was decided (§ 6.5.2) |
 | `condition` | string | never | the condition **as printed** by the one printer: `input.kind.value = "table"`. A condition comparing a `.title` prints both the raw value and the title. Package text, kept for the life of the record |
 | `expressionHash` | string | never | the hash of the canonical JSON Logic, which the printed text came from |
-| `result` | boolean or string | never | `true` or `false`; for a `case`, the id of the branch taken, or `"else"` |
-| `reads` | array of `{ path: string, hash: string }` | never | each value it read, by hash; never the value itself |
+| `result` | boolean or string | never | `true` or `false`; for a `case`, the arm taken: **its 1-based position as text** (`"2"`) or `"else"`, since a `case`'s arms have no ids at 31; the `condition` is then the printed subject |
+| `reads` | array of `{ path: string, hash: string }` | never | each value its own rule reads (the rule's variables, as `resolve.json` writes them), by the canonical hash of the value read (a `null` hashes as `null`); never the value itself |
 | `runDependent` | boolean | never | `true` when it read `run.*` or a run-dependent value |
 | `modelDerived` | boolean | never | `true` when it read a model-derived value. A decision's flags describe the decision only: they don't pass to what it chooses |
 | `decidedAtUtc` | string | never | when the engine evaluated it, from the orchestration's replay-safe clock |
+
+**How a decision's flags are found.** The flags follow earlier-pass reads. `runDependent` is `true` when a read is `run.*` or names an entry whose `runDependent` is `true`, and `modelDerived` is `true` likewise from the entries' `modelDerived`. A read through `item`, `pass` or `param` takes the flags of what it stands for: the loop's source, the body node, the call's argument reads. A read the runner cannot trace is `modelDerived: true` and `runDependent: true`, so the record never marks model output as not model-derived.
 
 **Reasons read as sentences** built from the printed condition: *skipped: input.kind.value = "table" is false*. A row skipped by a decision has this sentence as its `stateReason`, and the decision's id is how History links the two.
 
@@ -336,7 +350,7 @@ Every condition the engine evaluates is recorded, per instance:
 | Condition | `site` | Owner |
 |---|---|---|
 | a node's, check's, branch's or loop's header `if` | `self` | its row key |
-| a `case` | `case` (result: the branch id) | its row key |
+| a `case` | `case` (result: the arm's position, or `"else"`) | its row key |
 | a `while`'s condition, before or after pass *n* | `pass.<n>` | the `while`'s row key |
 | a `for`'s `until`, after item *i* | `until.<i>` | the loop's row key |
 | a macro's `if` | `macro.<id>` | the placing node's row key |
@@ -359,14 +373,14 @@ Snippet folder items have no `if`, so there's no per-item site. A body `if` in a
 | `status` | string | never | `Completed`, `Skipped`, `Failed`, as node rows |
 | `itemName` | string | allowed | in a check loop, the item's name from the loop's `itemLabel`, capped at 120 |
 | `alignedWith` | string | allowed | in a check loop, the row key of the production item with the same id (`node.sections:2` for `check.part_coverage.coverage:2`); `null` at the top level |
-| `checked` | object `{ ref: string, hash: string }` | allowed | what it ran on, with that output's hash: `deliverable.consult` with its composed hash, or `node.plan` with its output hash; `null` when it ran on several reads equally |
-| `reads` | array of `{ path: string, hash: string }` | never | its other inputs, by hash |
+| `checked` | object `{ ref: string, hash: string }` | allowed | what it ran on, with that output's hash: the one `deliverable.*` the check reads, with its composed hash (`deliverable.consult`); else the one node it reads, with its output hash (`node.plan`); else `null` |
+| `reads` | array of `{ path: string, hash: string }` | never | every other read, by hash |
 | `inputHash`, `outputHash` | string | allowed | as on a `computed` row |
 | `producer` | string | never | `computed`, as on node rows |
 | `modelDerived`, `runDependent`, `profileCarrying` | boolean | never | as on node rows |
 | `pass` | boolean | allowed | the `check_result`'s verdict, under the same name; kept for the life of the record, as today's `checkPassed`; `null` while running or when skipped. `passed` only ever means a count |
 | `failWith` | string | allowed | the `check_result`'s `message`, the operation's literal `failWith` sentence, when it failed (package text, kept); `null` when it passed |
-| `effect` | string | allowed | what it caused: `released`, `held`, `not sent`, or `read by <ref>`; `null` until known |
+| `effect` | string | allowed | what it caused, **written on its one row**: for a check that gates nothing and is read, `read by <ref>` (its first reader in key order); `null` when nothing reads it. For a gate, its row is recorded when the last deliverable it gates settles, with `released`, `held` or `blocked`, the deliverable's state word; with more than one deliverable, `<word> <deliverable key>` joined by `; ` in key order. A run that ends first records the gate's row with `effect: null` |
 | `count` | integer | allowed | on a check loop's own row, its item count; `null` on others |
 
 The `check_result`'s `uncovered` and `untested` lists come from inputs, so they follow the text retention rule: shown while retained, then deleted, with their hash kept for good (§ 6.11). Its `passed` and `total` counts are kept. This holds for every package. Check operations judge only `completed` items and always return a `check_result`.
@@ -403,20 +417,24 @@ Only the facts read are present. Run facts aren't patient text, so they're outsi
 
 #### 6.8.2 Run spots and the two hashes
 
-For a body that reads `run.*` (a prompt, a `rendered` node, a deliverable, a snippet or macro body), the record carries **the sent-text hash** (the main hash, as today), **the run-neutral hash** (the same text with each run spot left as its `{{run:<n>}}` marker), and **each run spot**. A read of a run-dependent value is a run spot too, and a run spot that pipes into renderers covers the whole pipeline.
+For a body that reads `run.*` (a prompt, a `rendered` node, a deliverable, or a snippet placed in one), the record carries **the sent-text hash** (the main hash, as today), **the run-neutral hash** (the same text with each run spot left as its `{{run:<n>}}` marker), and **each run spot**. A read of a run-dependent value is a run spot too, and a run spot that pipes into renderers covers the whole pipeline.
 
 | Member of a run spot | Type | Null | Meaning |
 |---|---|---|---|
 | `id` | string | never | `<row key>/spot:<n>` |
 | `site` | integer | never | the spot's position in the body (`resolve.json`'s `runSpots`) |
+| `pass` | array of integer | allowed | one number per enclosing template loop, 1-based; `null` for a spot in no template loop (§ 6.2.3) |
+| `start` | integer | never | where the spot's output begins in the sent text, in runes |
+| `length` | integer | never | the output's length, in runes |
 | `reads` | string | never | what it reads (`run.date`, or a run-dependent value's path) |
 | `valueHash` | string | never | the hash of the value read |
-| `output` | string | never | the formatted output (`"16 November 2026"`). **Kept permanently only when the spot reads raw `run.*` facts**; a spot that is also input- or model-derived (a run-dependent `computed` value that reads an input) follows 7-day retention |
+| `output` | string | allowed | the formatted output (`"16 November 2026"`), **in the row only when the spot reads raw `run.*` facts**, and then kept for the life of the record; a spot that is also input- or model-derived (a run-dependent `computed` value that reads an input) has `output` `null`, its text is in the retained text under 7-day retention, and `outputHash` stays |
 | `outputHash` | string | never | the output's hash |
 
-- **The sent text is rebuilt exactly** from the run-neutral text and the spot outputs, each put at the position recorded while rendering, never found by searching the text, so the main hash stays provable.
+- **The sent text is rebuilt exactly** from the run-neutral text and the spot outputs, each put at the position recorded while rendering (`start`, in runes), never found by searching the text, so the main hash stays provable.
 - **Runs are compared on the run-neutral hash.** Beside any body whose two hashes differ, History says the difference is due to run facts.
 - **A body with no run spots has one hash;** its `runNeutralHash` is `null`.
+- **A macro body's `run.*` is filled in directly,** with no spot in the placing body: macro bodies are not among the bodies that carry spots in the body they are placed in. The macro's own row carries its `runNeutralHash` and `runSpots` (§ 6.4.3), so macro rows compare across runs.
 - Deliverables carry the same members on their row (§ 6.10).
 
 ### 6.9 Profile reads
@@ -437,7 +455,7 @@ A deliverable's row keeps storage 11's members (its id, state, `composedHash`) a
 | `delivery` | array of delivery row key | never | the delivery rows of a released deliverable, one per destination (below); `[]` for a deliverable that wasn't released. The results are on those rows, not on this one |
 | `check` | string | allowed | the check row key that gated it, linking to the check's row; `null` when ungated |
 | `sites` | array of `{ site: integer, at: string, expr: string, loop: string \| null }` | never | each expression in the template, in source order, with its line and column. Package text, kept |
-| `substitutions` | array of substitution | never | each evaluation: `{ site, pass: integer[] \| null, reads: string, hash: string, size: integer, renders: string \| null }`; `pass` holds one number per enclosing template loop |
+| `substitutions` | array of substitution | never | each evaluation: `{ site, pass: integer[] \| null, reads: string, hash: string, start: integer, size: integer, renders: string \| null }`; `pass` holds one number per enclosing template loop. `start` and `size` say where its text sits in the composed text, in runes, `size` `0` for a value that writes nothing (a `null`) |
 | `renders` | array of renderer sub-row | never | as on node rows (§ 6.4.2) |
 | `runNeutralHash`, `runSpots` | | | as on node rows (§ 6.8.2) |
 | `modelDerived`, `runDependent`, `profileCarrying` | boolean | never | as on node rows |
@@ -454,9 +472,9 @@ A deliverable's row keeps storage 11's members (its id, state, `composedHash`) a
 
 The results are written once the job has succeeded: *not sent: EMR isn't set up for this account*, *not sent: the job failed*; `failed` after the attempts ran out or the delivery window closed, each attempt in `attempts`. The canonical record gathers the delivery rows under their deliverable.
 
-**Replay:** substituting the recorded values into the template, in site and pass order, must reproduce `composedHash`. A deliverable row shows only a one-line check status; the check's row holds the result.
+**Replay:** substituting the recorded values into the template, in site and pass order, must reproduce `composedHash`. It is checked by position, never by search: the composed text's slice at each substitution (`start`, for `size` runes) hashes to the substitution's `hash`, and substitutions never overlap. A deliverable row shows only a one-line check status; the check's row holds the result.
 
-**A deliverable whose gating check was skipped by its own `if` is released,** and recorded with the reason above; an empty `all_pass`, by contrast, fails. **A bundle holds released deliverables only;** History lists what was left out and why.
+**A deliverable whose gating check was skipped by its own `if` is released,** and recorded with the reason above; an empty `all_pass`, by contrast, fails. **A `blocked` deliverable is kept:** its row holds `composedHash`, `check`, `stateReason`, `sites` and `substitutions` like any other, its composed text is in the retained text, under 7-day retention with the hashes kept, and it is never delivered (`delivery: []`). **A bundle holds released deliverables only;** History lists what was left out and why.
 
 ### 6.11 Retention
 
@@ -471,7 +489,7 @@ The results are written once the job has succeeded: *not sent: EMR isn't set up 
 | the `modelDerived`, `runDependent` and `profileCarrying` flags, the removed-keyword pointers | item names drawn from inputs or model output; run spot outputs that are also input- or model-derived |
 | the signature block's id | |
 
-Retention goes by where text came from, not what it says, and holds for every package, medical or not. The sweep (`DropText`) deletes what the right-hand column names and stamps `textDroppedAtUtc`, as today. Every hash stays, so a sub-row or substitution keeps its reference, format, size and hash and says the text was deleted under retention.
+Retention goes by where text came from, not what it says, and holds for every package, medical or not. The sweep (`DropText`) deletes the text blobs that hold what the right-hand column names and stamps `textDroppedAtUtc`, as today; **no row is rewritten** (§ 6.1.1). Every hash stays, so a sub-row or substitution keeps its reference, format, size and hash and says the text was deleted under retention.
 
 **Hashes of short values:** every hash stays, short values' included. A hash of a short value (a name, a credentials line, a yes or no) can be reversed by hashing likely candidates, and this document says so beside the hash definitions ([hash-definitions.md § 7](hash-definitions.md)). Long texts keep their hash for verification as before.
 
@@ -520,11 +538,13 @@ A `test/general` job at 31, the assessment node in the `standards` loop, with on
                    "builtins": { "concept_bullets": "1.0.0", "formats": "1.0.0", "markdown_escape": "1.0.0",
                                  "plain_conversion": "1.0.0", "printer": "1.0.0" },
                    "culture": "invariant",
-                   "runtime": { "dotnet": "10.0.3", "unicode": "16.0" } },
+                   "runtime": { "dotnet": "10.0.3", "unicode": "16.0" },
+                   "catalogues": { "agents": "agents@v2026.12.1", "formats": "formats@v2026.12.1",
+                                   "outputContracts": null } },
   "runFacts": { "date": { "value": "2026-11-16", "timeZone": "America/Toronto" } },
   "limits": { "maxAgentCalls": 16, "capacityWaitMinutes": 10, "serviceAttempts": 5, "jobMinutes": 30,
               "deliveryMinutes": 15, "deliveryAttempts": 3,
-              "loopItems": 200, "jobAgentCalls": 500, "renderSteps": 100000 },
+              "loopItems": 200, "jobAgentCalls": 500, "jobInstances": 10000, "renderSteps": 100000 },
   "signatureBlockId": "sig-2", "signatureChosen": "job",
   "decisions": [
     { "id": "node.standards.assessment:7/if:macro.letrozole_prescription_text",
