@@ -556,12 +556,14 @@ A `test/general` job at 31, the assessment node in the `standards` loop, with on
   "nodeOutputs": {
     "node.standards.assessment:7": {
       "nodeId": "node.standards.assessment", "itemId": "7", "kind": "agent", "producer": "generated",
-      "itemName": "Assessment and plan",
+      "itemName": "Assessment and plan", "itemNameHash": null,
       "status": "Completed", "stateReason": null,
       "inputHash": "sha256:…", "outputHash": "sha256:…", "hashVersion": 7,
       "formatHash": "sha256:…", "typeHash": "sha256:…", "sentFormatHash": "sha256:…", "notSent": [],
       "agent": { "name": "consult-prose", "version": 4,
                  "binding": { "format": "markdown_block", "producer": "generated", "via": "format" } },
+      "units": [ { "site": "snippet.clinic_header", "hash": "sha256:…", "sent": true } ],
+      "tokens": { "input": 1840, "output": 412, "total": 2252 },
       "runDependent": false, "profileCarrying": false, "modelDerived": true, "runNeutralHash": null, "runSpots": [],
       "renders": [ { "id": "node.standards.assessment:7/render:1", "renderer": "renderer.concept_bullets",
                      "templateHash": "sha256:b81…", "source": "node.extract.value",
@@ -571,7 +573,7 @@ A `test/general` job at 31, the assessment node in the `standards` loop, with on
                     "macro": "macro.letrozole_prescription_text", "offered": true,
                     "decisions": ["node.standards.assessment:7/if:macro.letrozole_prescription_text"],
                     "classifier": "node.standards.prescribes_letrozole:7", "placed": true, "form": "block",
-                    "contentHash": "sha256:…" } ],
+                    "contentHash": "sha256:…", "runNeutralHash": null, "runSpots": [] } ],
       "invalid": null, "retries": [], "profileReads": []
     }
   },
