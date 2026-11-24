@@ -523,7 +523,7 @@ A deliverable's row keeps storage 11's members (its id, state, `composedHash`) a
 | `format` | string | never | the deliverable's format (`markdown_block`, `plaintext` or an object format; never `markdown_inline`) |
 | `state` | string | never | `released`, `held`, `failed`, `skipped` (its header `if`) or `blocked` (its gate check failed or errored) |
 | `stateReason` | string | allowed | the sentence: *held: empty*, *skipped: <condition> is false*, *blocked: check '<id>' failed (<detail>)*, *blocked: check '<id>' could not run (<error>)*, *released: check '<id>' didn't apply (its if was false)*; `null` when released through a passing check or none |
-| `delivery` | array of delivery row key | never | the delivery rows of a released deliverable, one per destination (below); `[]` for a deliverable that wasn't released. The results are on those rows, not on this one |
+| `delivery` | array of delivery row key | never | the delivery rows of a released deliverable, one per destination (below); `[]` for a deliverable that wasn't released (the link-only email's rows of a job whose every deliverable was blocked are still gathered under its `deliveries`, § 6.1.2). The results are on those rows, not on this one |
 | `check` | string | allowed | the check row key that gated it, linking to the check's row; `null` when ungated |
 | `sites` | array of `{ site: integer, at: string, expr: string, loop: string \| null }` | never | each expression in the template, in source order: `site` its number, `at` its line and column (`"3:1"`), `expr` its source text and `loop` the template loop it sits in, or `null`. Package text, kept |
 | `substitutions` | array of substitution | never | each evaluation: `{ site, pass: integer[] \| null, reads: string, hash: string, start: integer, size: integer, renders: string \| null }`; `pass` holds one number per enclosing template loop. `start` and `size` say where its text sits in the composed text, in runes, `size` `0` for a value that writes nothing (a `null`) |
@@ -532,7 +532,7 @@ A deliverable's row keeps storage 11's members (its id, state, `composedHash`) a
 | `modelDerived`, `runDependent`, `profileCarrying` | boolean | never | as on node rows |
 | `startedAtUtc`, `completedAtUtc`, `durationMs` | string, string, integer | allowed | as on node rows (§ 6.4): its render sent, and its outcome decided |
 
-**A delivery row** is written for each destination of a released deliverable, keyed `delivery:<deliverable>/<destination>`, and is the one place a result is recorded:
+**A delivery row** is written for each destination of a released deliverable, keyed `delivery:<deliverable>/<destination>`, and is the one place a result is recorded. A job that completes having released nothing, with a deliverable blocked or held, still sends the link-only email, as specVersion 30's reply did ([ruled](https://github.com/Consultologist/Consultologist-Blazor/issues/1507#issuecomment-7086202369)): each `email` or `pdf` destination of each blocked or held deliverable gets a row for it:
 
 | Member | Type | Null | Meaning |
 |---|---|---|---|
@@ -540,9 +540,9 @@ A deliverable's row keeps storage 11's members (its id, state, `composedHash`) a
 | `deliverable` | string | never | the deliverable key it belongs to; the canonical document gathers it under that deliverable's `deliveries` (§ 6.1.2) |
 | `kind` | string | never | the destination's kind |
 | `result` | `"sent"`, `"not sent"` or `"failed"` | never | the outcome |
-| `reason` | string | allowed | the sentence for a result other than `sent`; `null` for `sent` |
+| `reason` | string | allowed | the sentence for a result other than `sent`; for a `sent` that went as the link-only email in place of what was asked, why: *no document password* or *attachments over the budget* (a `pdf` destination, as specVersion 30's reply fell back) or *every deliverable blocked* ([ruled](https://github.com/Consultologist/Consultologist-Blazor/issues/1507#issuecomment-7082078968)); `null` for any other `sent` |
 | `atUtc` | string | allowed | when the result was written; `null` until then |
-| `attempts` | array of `{ atUtc: string, outcome: string }` | never | each attempt, in order, `outcome` its result word |
+| `attempts` | array of `{ atUtc: string, outcome: string }` | never | each attempt, in order, `outcome` its result word: `sent`, `sent link-only` (the link-only email, nothing attached; the row's `reason` says why) or `failed: <error kind>` |
 
 The results are written once the job has succeeded: *not sent: EMR isn't set up for this account*, *not sent: the job failed*; `failed` after the attempts ran out or the delivery window closed, each attempt in `attempts`. The canonical record gathers the delivery rows under their deliverable.
 
@@ -586,6 +586,7 @@ The record refuses nothing itself; the refusals at start and load belong to the 
 - *not sent: <kind> isn't set up for this account* (an unconfigured delivery kind), for example *not sent: EMR isn't set up for this account*
 - *not sent: the job failed* (each destination of a released deliverable in a job that failed; nothing is delivered until the job has succeeded)
 - *failed: <kind>* (a destination whose delivery was retried and still didn't go, with each attempt on the result; the job stays completed)
+- *no document password*, *attachments over the budget* and *every deliverable blocked* (the `reason` of a `sent` row whose attempt was `sent link-only`: a `pdf` destination with no document password or over the attachment budget, or the link-only email of a job whose every deliverable was blocked or held)
 - *blocked: check '<id>' failed (<detail>)* and *blocked: check '<id>' could not run (<error>)* (a deliverable whose gate check failed or errored)
 - *cancelled: the job didn't finish within <n> minutes* (a row still running at the job limit)
 - History's banner, built from the record: *<deliverable label> was blocked: check '<check id>' failed (<detail>).*, for example *Consultation note was blocked: check 'coverage' failed (10 of 12 terms present).*
