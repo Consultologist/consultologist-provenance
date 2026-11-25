@@ -134,7 +134,7 @@ A specVersion 31 node instance stamps `hashVersion` 7 on its row. Definition 7 i
 
 ### 7.2 The effective-input definition 7 (`effectiveInputHashVersions`)
 
-Definition 7 hashes the supplied inputs as **a canonical JSON object keyed by input id**, with **Markdown inputs in their converted form**: the Markdown the converter produced from a document, not the document's bytes.
+Definition 7 hashes the supplied inputs as **a canonical JSON object keyed by input id**, with **a document's text as extracted, as at 30**: the text the parser read from a document, not the document's bytes. The document-to-Markdown converter is Milestone 40 (#1442); when it arrives it is a new definition, not a change to this one.
 
 The engine's bytes: the RFC 8785 JSON of the object whose members are the supplied inputs, each named by its id and holding the `value` of the input's read form (`{ value, content, title }`) as the job's start read it: typed text as typed, a document's text as its extraction gave it, a boolean as `true` or `false`, structure as supplied; an optional input left out is omitted. The hash is written `sha256:<64 lowercase hex>`. Each input's own hash on the job header's `inputs` is the hash, by the same rule, of that `value` alone.
 
