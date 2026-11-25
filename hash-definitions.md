@@ -166,7 +166,7 @@ So `tests/` is covered by `sourceHash`, and through it by `resolveHash`, without
 
 There are two comparisons of formats, each with its own hash:
 
-- **The type hash** (`typeHash`; `resolve.json`'s `typeHashes`) hashes a format under **type equality**: references compared by name (never dereferenced), `anyOf` members and `properties` sorted by name, annotations (`title`, `description`) dropped.
+- **The type hash** (`typeHash`; `resolve.json`'s `typeHashes`) hashes a format under **type equality**: references compared by name (the format's id, never the `$id` URN a reference inside `resolve.json`'s bundle is written as; never dereferenced), `anyOf` members and `properties` sorted by name, annotations (`title`, `description`) dropped.
 - **The full format hash** (`formatHash`; `resolve.json`'s `formatHashes`) hashes a format under **full equality**: everything dereferenced, every keyword kept. **It leaves out `$id`,** so the same shape published under two ids hashes the same. It is what a model's reply is validated against.
 - **The sent-format hash** (`sentFormatHash`) hashes the copy of the format a model receives, prepared in these steps:
   1. each `description` is kept: it is the instruction to the model, at the top of the format and on each property; a field that `$ref`s a text format sends that text format's `description` first, then its own;
