@@ -263,7 +263,13 @@ Each **document-filled input**, and each document element of a mixed array, reco
 
 An input in the header is `{ id, origin, hash }`: its `id`, its `origin` (below) and the hash of its value as `effectiveInputHash` takes it, never the value. An input a document filled adds the members above and `kind`, `extractor`, `pageCount`, `fileSha256` and `textSha256`; an input of several elements lists them, in order, as `elements`, each with its own `origin` and, for a document, those members. In an `ocr` object, `service` and `model` are the OCR service and its model. `extractor` (the extraction's name and version, as storage 11 writes it) stays, for readers of older records. A later milestone builds on them: [#1438](https://github.com/Consultologist/Consultologist-Blazor/issues/1438).
 
-**An input element from a previous run's deliverable** starts out **model-derived**, and its origin links to the job it came from. Typed text and uploaded documents start clean.
+**An input element from a previous run's deliverable** starts out **model-derived**, and its origin links to the job it came from. Typed text and uploaded documents start clean. Such an element is recorded as `{ "origin": "previous-run", "jobId": "<source job>", "resultId": "<deliverable id>", "modelDerived": true }`. On an input it alone filled, the three members sit beside `id`, `origin` and `hash`; in `elements`, beside the element's `origin`. A decision that reads an input holding such an element is `modelDerived: true` (§ 6.5.1).
+
+| Member (on a `previous-run` origin) | Type | Null | Meaning |
+|---|---|---|---|
+| `jobId` | string | never | the job whose deliverable the element was copied from, the same account's |
+| `resultId` | string | never | that deliverable's id |
+| `modelDerived` | boolean | never | `true`: the element starts out model-derived |
 
 **Input elements record their `origin`** (`typed`, `document`, `previous-run`, `transcript`), never a `producer`, which is a node's. The engine always knows the origin, so `null` is never written.
 
@@ -399,7 +405,7 @@ Each pass of a `while` is a row of its own, kind `while`, keyed `<while key>#<n>
 | `modelDerived` | boolean | never | `true` when it read a model-derived value. A decision's flags describe the decision only: they don't pass to what it chooses |
 | `decidedAtUtc` | string | never | when the engine evaluated it, from the orchestration's replay-safe clock |
 
-**How a decision's flags are found.** The flags follow earlier-pass reads. `runDependent` is `true` when a read is `run.*` or names an entry whose `runDependent` is `true`, and `modelDerived` is `true` likewise from the entries' `modelDerived`. A read through `item`, `pass` or `param` takes the flags of what it stands for: the loop's source, the body node, the call's argument reads. A read the runner cannot trace is `modelDerived: true` and `runDependent: true`, so the record never marks model output as not model-derived.
+**How a decision's flags are found.** The flags follow earlier-pass reads. `runDependent` is `true` when a read is `run.*` or names an entry whose `runDependent` is `true`, and `modelDerived` is `true` likewise from the entries' `modelDerived`, and for a read of an input holding an element from a previous run's deliverable (§ 6.3.1). A read through `item`, `pass` or `param` takes the flags of what it stands for: the loop's source, the body node, the call's argument reads. A read the runner cannot trace is `modelDerived: true` and `runDependent: true`, so the record never marks model output as not model-derived.
 
 **Reasons read as sentences** built from the printed condition: *skipped: input.kind.value = "table" is false*. A row skipped by a decision has this sentence as its `stateReason`, and the decision's id is how History links the two.
 
